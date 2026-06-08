@@ -1,50 +1,53 @@
 # ============================================================
-# HFS_1 v3 — Gemma 4 12B LLM API Server
+# HFS_1 v4 — Gemma 4 12B LLM API Server
 #
-# v2 সমস্যা: llama-cpp-python==0.3.9 pre-built wheel পাওয়া যায়নি
-#            → source build → gcc নেই → fail
+# সমস্যার ইতিহাস:
+#   v1: llama.cpp source build → OOMKilled (16GB RAM শেষ)
+#   v2: llama-cpp-python==0.3.9, extra-index-url → wheel নেই → source build → gcc নেই → fail
+#   v3: gcc install + llama-cpp-python==0.3.27 build → OOMKilled (16GB RAM শেষ)
 #
-# v3 সমাধান:
-#   - gcc/cmake install (ছোট, OOM হবে না)
-#   - llama-cpp-python==0.3.27 (latest, Gemma 4 support)
-#   - GGML_OPENBLAS=ON (CPU multi-core acceleration)
+# v4 চূড়ান্ত সমাধান:
+#   Direct pre-built wheel URL দিয়ে install → ZERO compilation
+#   Source: sergey21000/llama-cpp-python-wheels (GitHub)
+#   Wheel: llama_cpp_python-0.3.15-cp311-cp311-linux_x86_64.whl
+#   Size: ~4MB, install time: <10 seconds
 # ============================================================
 
 FROM python:3.11-slim
 
 ARG DEBIAN_FRONTEND=noninteractive
 
-# gcc/g++/cmake: llama-cpp-python C extension build এর জন্য দরকার
-# v1 OOM কারণ: পুরো llama.cpp codebase compile (~16GB RAM)
-# v3 safe কারণ: শুধু Python C binding compile (~2-3GB RAM max)
+# ── Minimal runtime libs only (gcc/cmake নেই!) ───────────────
+# libopenblas0: CPU matrix acceleration (runtime)
+# libgomp1: OpenMP threading (runtime)
+# curl: health check
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    gcc \
-    g++ \
-    cmake \
-    libopenblas-dev \
+    libopenblas0 \
     libgomp1 \
     curl \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# HuggingFace download tools
+# ── HuggingFace download tools ────────────────────────────────
 RUN pip install --no-cache-dir \
     "huggingface_hub==0.27.0" \
     "hf-transfer==0.1.8" \
     "requests==2.32.3"
 
-# llama-cpp-python CPU build with OpenBLAS
-# 0.3.27 = latest stable, Gemma 4 chat format support আছে
-RUN CMAKE_ARGS="-DGGML_OPENBLAS=ON" \
-    pip install --no-cache-dir \
-    "llama-cpp-python==0.3.27"
+# ── llama-cpp-python: PRE-BUILT WHEEL (zero compilation!) ─────
+# sergey21000/llama-cpp-python-wheels থেকে direct download
+# Python 3.11 / Linux x86_64 / CPU-only / v0.3.15
+# v0.3.15 এ Gemma 3/4 chat format সাপোর্ট আছে
+RUN pip install --no-cache-dir \
+    "https://github.com/sergey21000/llama-cpp-python-wheels/releases/download/v0.3.15-cpu/llama_cpp_python-0.3.15-cp311-cp311-linux_x86_64.whl"
 
-# FastAPI server
+# ── FastAPI server ─────────────────────────────────────────────
 RUN pip install --no-cache-dir \
     "fastapi==0.115.5" \
     "uvicorn[standard]==0.32.1" \
     "pydantic==2.10.3"
 
+# ── App files ─────────────────────────────────────────────────
 WORKDIR /app
 COPY download_model.py .
 COPY start.sh .
