@@ -1,20 +1,17 @@
 #!/usr/bin/env python3
 """
-download_model.py
------------------
-Gemma 4 12B GGUF মডেল ডাউনলোড করে।
-- Primary:  ggml-org/gemma-4-12B-it-GGUF  (Q4_K_M ~7.4GB)
-- Fallback: unsloth/gemma-4-12b-it-GGUF   (Q4_K_M)
+download_model.py  —  HFS_1 v2
+Gemma 4 12B Q4_K_M GGUF মডেল ডাউনলোড করে /app/models/model.gguf এ রাখে।
 
-HuggingFace free tier: 50GB disk, 16GB RAM
-Q4_K_M quantization → ~7.4GB disk, ~8-9GB RAM during inference
+Sources (ক্রমে চেষ্টা করে):
+  1. ggml-org/gemma-4-12B-it-GGUF  (official)
+  2. bartowski/gemma-4-12b-it-GGUF  (backup)
 """
 
 import os
 import sys
 import logging
 from pathlib import Path
-from huggingface_hub import hf_hub_download, snapshot_download
 
 logging.basicConfig(
     level=logging.INFO,
@@ -22,68 +19,64 @@ logging.basicConfig(
 )
 log = logging.getLogger(__name__)
 
-# ── Configuration ────────────────────────────────────────────
-MODEL_DIR = Path("/app/models")
-MODEL_DIR.mkdir(parents=True, exist_ok=True)
+TARGET = Path("/app/models/model.gguf")
+MIN_SIZE_BYTES = 1_000_000_000  # 1GB minimum — corrupt check
 
-# Gemma 4 12B IT (instruction-tuned) Q4_K_M
-# ~7.4GB — free tier এ চলবে
-PRIMARY_REPO   = "ggml-org/gemma-4-12B-it-GGUF"
-PRIMARY_FILE   = "gemma-4-12B-it-Q4_K_M.gguf"
+# HF_TRANSFER → faster parallel downloads
+os.environ["HF_HUB_ENABLE_HF_TRANSFER"] = "1"
 
-FALLBACK_REPO  = "bartowski/gemma-4-12b-it-GGUF"
-FALLBACK_FILE  = "gemma-4-12b-it-Q4_K_M.gguf"
-
-# HF token (HuggingFace Space Secret থেকে পাবে)
 HF_TOKEN = os.environ.get("HF_TOKEN", None)
 
-TARGET_PATH = MODEL_DIR / "model.gguf"
+SOURCES = [
+    # (repo_id, filename)
+    ("ggml-org/gemma-4-12B-it-GGUF",  "gemma-4-12B-it-Q4_K_M.gguf"),
+    ("bartowski/gemma-4-12b-it-GGUF", "gemma-4-12b-it-Q4_K_M.gguf"),
+    # যদি উপরেরগুলো না চলে তাহলে Q3 চেষ্টা করো (smaller)
+    ("ggml-org/gemma-4-12B-it-GGUF",  "gemma-4-12B-it-Q3_K_M.gguf"),
+]
 
 
-def download_model() -> Path:
-    """মডেল ডাউনলোড করে target path এ রাখে।"""
+def download():
+    # ইতিমধ্যে ডাউনলোড আছে কিনা দেখো
+    if TARGET.exists() and TARGET.stat().st_size > MIN_SIZE_BYTES:
+        gb = TARGET.stat().st_size / 1e9
+        log.info(f"✅ মডেল ইতিমধ্যে আছে: {TARGET} ({gb:.1f} GB) — skip")
+        return
 
-    if TARGET_PATH.exists() and TARGET_PATH.stat().st_size > 1_000_000_000:
-        log.info(f"✅ মডেল আগেই ডাউনলোড করা আছে: {TARGET_PATH} ({TARGET_PATH.stat().st_size / 1e9:.1f} GB)")
-        return TARGET_PATH
+    TARGET.parent.mkdir(parents=True, exist_ok=True)
 
-    log.info("📥 মডেল ডাউনলোড শুরু হচ্ছে...")
+    from huggingface_hub import hf_hub_download
 
-    # Enable hf_transfer for faster downloads
-    os.environ["HF_HUB_ENABLE_HF_TRANSFER"] = "1"
-
-    attempts = [
-        (PRIMARY_REPO,  PRIMARY_FILE),
-        (FALLBACK_REPO, FALLBACK_FILE),
-    ]
-
-    for repo_id, filename in attempts:
+    for repo_id, filename in SOURCES:
         try:
-            log.info(f"⬇️  চেষ্টা করছি: {repo_id} / {filename}")
-            downloaded = hf_hub_download(
+            log.info(f"⬇️  ডাউনলোড চেষ্টা: {repo_id}/{filename}")
+            path = hf_hub_download(
                 repo_id=repo_id,
                 filename=filename,
-                local_dir=MODEL_DIR,
+                local_dir=TARGET.parent,
                 token=HF_TOKEN,
                 repo_type="model",
             )
-            # Rename to standard name
-            src = Path(downloaded)
-            if src != TARGET_PATH:
-                src.rename(TARGET_PATH)
+            downloaded = Path(path)
+            # Target path এ rename
+            if downloaded.resolve() != TARGET.resolve():
+                downloaded.rename(TARGET)
 
-            size_gb = TARGET_PATH.stat().st_size / 1e9
-            log.info(f"✅ ডাউনলোড সফল! ফাইল: {TARGET_PATH} ({size_gb:.1f} GB)")
-            return TARGET_PATH
+            gb = TARGET.stat().st_size / 1e9
+            log.info(f"✅ ডাউনলোড সফল! {gb:.1f} GB → {TARGET}")
+            return
 
         except Exception as e:
-            log.warning(f"⚠️  {repo_id} থেকে ডাউনলোড ব্যর্থ: {e}")
+            log.warning(f"⚠️  {repo_id} ব্যর্থ: {e}")
+            # অসম্পূর্ণ ফাইল মুছে ফেলো
+            candidate = TARGET.parent / filename
+            if candidate.exists():
+                candidate.unlink()
             continue
 
-    log.error("❌ সব source থেকে ডাউনলোড ব্যর্থ হয়েছে!")
+    log.error("❌ সব source থেকে ডাউনলোড ব্যর্থ!")
     sys.exit(1)
 
 
 if __name__ == "__main__":
-    path = download_model()
-    log.info(f"মডেল প্রস্তুত: {path}")
+    download()
