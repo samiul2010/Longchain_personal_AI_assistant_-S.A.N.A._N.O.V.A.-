@@ -13,7 +13,7 @@
 #   Size: ~4MB, install time: <10 seconds
 # ============================================================
 
-FROM python:3.11-slim
+FROM python:3.10-slim
 
 ARG DEBIAN_FRONTEND=noninteractive
 
@@ -39,25 +39,6 @@ RUN pip install --no-cache-dir \
 # Python 3.11 / Linux x86_64 / CPU-only / v0.3.15
 # v0.3.15 এ Gemma 3/4 chat format সাপোর্ট আছে
 RUN pip install --no-cache-dir \
-    "https://github.com/sergey21000/llama-cpp-python-wheels/releases/download/v0.3.15-cpu/llama_cpp_python-0.3.15-cp311-cp311-linux_x86_64.whl"
+    "https://huggingface.co/Luigi/llama-cpp-python-wheels-hf-spaces-free-cpu/resolve/main/llama_cpp_python-0.3.22-cp310-cp310-linux_x86_64.whl"
 
-# ── FastAPI server ─────────────────────────────────────────────
-RUN pip install --no-cache-dir \
-    "fastapi==0.115.5" \
-    "uvicorn[standard]==0.32.1" \
-    "pydantic==2.10.3"
-
-# ── App files ─────────────────────────────────────────────────
-WORKDIR /app
-COPY download_model.py .
-COPY start.sh .
-COPY api_server.py .
-RUN chmod +x start.sh
-RUN mkdir -p /app/models
-
-RUN useradd -m -u 1000 appuser && \
-    chown -R appuser:appuser /app
-USER appuser
-
-EXPOSE 7860
-CMD ["/app/start.sh"]
+# ── FastAPI server ──────────────────────────────────────�
