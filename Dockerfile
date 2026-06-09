@@ -39,7 +39,7 @@ RUN pip install --no-cache-dir \
 # Python 3.11 / Linux x86_64 / CPU-only / v0.3.15
 # v0.3.15 এ Gemma 3/4 chat format সাপোর্ট আছে
 RUN pip install --no-cache-dir \
-    "https://github.com/sergey21000/llama-cpp-python-wheels/releases/download/v0.3.15-cpu/llama_cpp_python-0.3.15-cp311-cp311-linux_x86_64.whl"
+    "https://github.com/sergey21000/llama-cpp-python-wheels/releases/download/v0.3.9-cpu/llama_cpp_python-0.3.9-cp311-cp311-linux_x86_64.whl"
 
 # ── FastAPI server ─────────────────────────────────────────────
 RUN pip install --no-cache-dir \
