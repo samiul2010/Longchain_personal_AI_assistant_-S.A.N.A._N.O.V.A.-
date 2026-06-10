@@ -1,59 +1,47 @@
 # ============================================================
-# HFS_1 v7 — Gemma 4 12B Q2_K API Server
-#
-# ইতিহাস:
-#   v1-v3: compilation → OOMKilled
-#   v4-v5: pre-built wheel → Gemma 4 চেনে না (Jan 2026)
-#   v6: llama-server binary → OOMKilled
-#
-# v7 সমাধান:
-#   - মডেল: Q2_K (4.1GB) → RAM ~6GB → 16GB তে নিরাপদ
-#   - Wheel: llama-cpp-python source build কিন্তু TINY build
-#     (GGML_NATIVE=OFF, no AVX, minimal — OOM হবে না)
-#   - CTX=2048, batch=256 → inference এ RAM বাঁচে
+# HFS_1 Dockerfile_v8
+# ============================================================
+# ZERO compilation — yusiwen/llama.cpp থেকে binary copy
+# Gemma 4 সম্পূর্ণ সাপোর্ট (daily updated image)
 # ============================================================
 
+# Step 1: llama-server binary নাও (কোনো compilation নেই)
+FROM yusiwen/llama.cpp:latest AS llama_source
+
+# Step 2: হালকা Python image
 FROM python:3.10-slim
 
-ARG DEBIAN_FRONTEND=noninteractive
 WORKDIR /app
 
-# ── Build tools (wheel build এর জন্য, minimal) ───────────────
+# llama-server binary copy করো
+COPY --from=llama_source /usr/local/bin/llama-server /usr/local/bin/llama-server
+
+# Runtime libs (gcc/cmake নেই — build tools দরকার নেই)
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    gcc \
-    g++ \
-    cmake \
-    libopenblas0 \
     libgomp1 \
+    libopenblas0 \
     curl \
     bash \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# ── HuggingFace tools ─────────────────────────────────────────
+# HuggingFace download tools
 RUN pip install --no-cache-dir \
     "huggingface_hub==0.27.0" \
     "hf-transfer==0.1.8" \
     "requests==2.32.3"
 
-# ── llama-cpp-python: MINIMAL build ──────────────────────────
-# GGML_NATIVE=OFF → CPU-specific instruction বাদ (OOM এড়ায়)
-# CMAKE_BUILD_PARALLEL_LEVEL=1 → একটা thread এ build (RAM বাঁচে)
-# GGML_BLAS=OFF → OpenBLAS linking বাদ (সহজ build)
-RUN CMAKE_ARGS="-DGGML_NATIVE=OFF -DGGML_BLAS=OFF -DGGML_OPENMP=OFF" \
-    CMAKE_BUILD_PARALLEL_LEVEL=1 \
-    pip install --no-cache-dir \
-    "llama-cpp-python==0.3.9" \
-    --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu
-
-# ── FastAPI ───────────────────────────────────────────────────
+# FastAPI proxy server
 RUN pip install --no-cache-dir \
     "fastapi==0.115.5" \
-    "uvicorn[standard]==0.32.1" \
-    "pydantic==2.10.3"
+    "uvicorn==0.32.1" \
+    "httpx==0.28.1"
 
-# ── App files ─────────────────────────────────────────────────
-COPY download_model.py api_server.py start.sh ./
+# App files
+COPY download_model_v8.py /app/download_model.py
+COPY api_server_v8.py /app/api_server.py
+COPY start_v8.sh /app/start.sh
+
 RUN chmod +x /app/start.sh
 RUN mkdir -p /app/models
 
