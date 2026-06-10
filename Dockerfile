@@ -1,7 +1,7 @@
-FROM yusiwen/llama.cpp:latest AS llama_source
+FROM ghcr.io/ggml-org/llama.cpp:server AS llama_source
 FROM python:3.10-slim
 WORKDIR /app
-COPY --from=llama_source /usr/local/bin/llama-server /usr/local/bin/llama-server
+COPY --from=llama_source /app/llama-server /usr/local/bin/llama-server
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libgomp1 libopenblas0 curl bash \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
