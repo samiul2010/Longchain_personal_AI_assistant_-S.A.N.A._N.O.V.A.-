@@ -1,26 +1,28 @@
 # ============================================================
-# HFS_1 v5 — Gemma 4 12B LLM API Server
+# HFS_1 v7 — Gemma 4 12B Q2_K API Server
 #
-# সমস্যার ইতিহাস:
-#   v1: llama.cpp source build → OOMKilled
-#   v2: wheel নেই → source build → gcc নেই → fail
-#   v3: gcc install + build → OOMKilled
-#   v4: python:3.10 + Luigi wheel → app startup হয় না (permission)
+# ইতিহাস:
+#   v1-v3: compilation → OOMKilled
+#   v4-v5: pre-built wheel → Gemma 4 চেনে না (Jan 2026)
+#   v6: llama-server binary → OOMKilled
 #
-# v5 সমাধান:
-#   - python:3.10-slim (Luigi wheel এর জন্য)
-#   - Luigi/llama-cpp-python wheel (Gemma 4 সাপোর্ট, Jan 2026)
-#   - USER root এ চালানো (HFS free tier এ permission সমস্যা এড়াতে)
+# v7 সমাধান:
+#   - মডেল: Q2_K (4.1GB) → RAM ~6GB → 16GB তে নিরাপদ
+#   - Wheel: llama-cpp-python source build কিন্তু TINY build
+#     (GGML_NATIVE=OFF, no AVX, minimal — OOM হবে না)
+#   - CTX=2048, batch=256 → inference এ RAM বাঁচে
 # ============================================================
 
 FROM python:3.10-slim
 
 ARG DEBIAN_FRONTEND=noninteractive
-
 WORKDIR /app
 
-# ── System libs ───────────────────────────────────────────────
+# ── Build tools (wheel build এর জন্য, minimal) ───────────────
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
+    g++ \
+    cmake \
     libopenblas0 \
     libgomp1 \
     curl \
@@ -28,36 +30,32 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# ── HuggingFace download tools ────────────────────────────────
+# ── HuggingFace tools ─────────────────────────────────────────
 RUN pip install --no-cache-dir \
     "huggingface_hub==0.27.0" \
     "hf-transfer==0.1.8" \
     "requests==2.32.3"
 
-# ── llama-cpp-python: PRE-BUILT WHEEL ─────────────────────────
-# Luigi fork — HFS free CPU এর জন্য তৈরি
-# Python 3.10 / Linux x86_64 / CPU+OpenBLAS / Jan 2026 build
-# Gemma 4 সহ সব আধুনিক architecture সাপোর্ট করে
-RUN pip install --no-cache-dir \
-    "https://huggingface.co/Luigi/llama-cpp-python-wheels-hf-spaces-free-cpu/resolve/main/llama_cpp_python-0.3.22-cp310-cp310-linux_x86_64.whl"
+# ── llama-cpp-python: MINIMAL build ──────────────────────────
+# GGML_NATIVE=OFF → CPU-specific instruction বাদ (OOM এড়ায়)
+# CMAKE_BUILD_PARALLEL_LEVEL=1 → একটা thread এ build (RAM বাঁচে)
+# GGML_BLAS=OFF → OpenBLAS linking বাদ (সহজ build)
+RUN CMAKE_ARGS="-DGGML_NATIVE=OFF -DGGML_BLAS=OFF -DGGML_OPENMP=OFF" \
+    CMAKE_BUILD_PARALLEL_LEVEL=1 \
+    pip install --no-cache-dir \
+    "llama-cpp-python==0.3.9" \
+    --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu
 
-# ── FastAPI server ─────────────────────────────────────────────
+# ── FastAPI ───────────────────────────────────────────────────
 RUN pip install --no-cache-dir \
     "fastapi==0.115.5" \
     "uvicorn[standard]==0.32.1" \
     "pydantic==2.10.3"
 
 # ── App files ─────────────────────────────────────────────────
-COPY download_model.py .
-COPY start.sh .
-COPY api_server.py .
-
+COPY download_model.py api_server.py start.sh ./
 RUN chmod +x /app/start.sh
 RUN mkdir -p /app/models
 
-# NOTE: root হিসেবে চালানো হচ্ছে (HFS free tier)
-# useradd বাদ দেওয়া হয়েছে — permission সমস্যা এড়াতে
-
 EXPOSE 7860
-
 CMD ["/bin/bash", "/app/start.sh"]
