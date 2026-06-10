@@ -23,7 +23,7 @@ os.environ["HF_HUB_ENABLE_HF_TRANSFER"] = "1"
 HF_TOKEN = os.environ.get("HF_TOKEN", None)
 
 SOURCES = [
-    ("ggml-org/gemma-4-12B-it-GGUF",  "gemma-4-12B-it-IQ2_M.gguf"),
+    ("ggml-org/gemma-4-12B-it-GGUF",  "gemma-4-12B-it-IQ2_S.gguf"),
     ("bartowski/gemma-4-12b-it-GGUF", "gemma-4-12B-it-IQ2_M.gguf"),
 ]
 
