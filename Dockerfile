@@ -21,4 +21,5 @@ COPY start.sh /app/start.sh
 RUN chmod +x /app/start.sh && mkdir -p /app/models
 
 EXPOSE 7860
+ENTRYPOINT []
 CMD ["/bin/bash", "/app/start.sh"]
