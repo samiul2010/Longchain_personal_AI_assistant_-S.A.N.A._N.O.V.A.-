@@ -2,14 +2,19 @@
 set -euo pipefail
 
 echo "======================================"
-echo "  HFS_1 v8: Gemma 4 12B"
+echo "  HFS_1 v8: Gemma 4 12B Q2_K"
 echo "======================================"
 
-echo "llama-server খুঁজছি..."
-find / -name "llama-server" 2>/dev/null || echo "কোথাও নেই!"
-which llama-server 2>/dev/null || echo "PATH এ নেই"
-ls /app/ 2>/dev/null || echo "/app নেই"
-ls /usr/local/bin/ 2>/dev/null | grep llama || echo "/usr/local/bin এ নেই"
+echo "মডেল ডাউনলোড..."
+python3 /app/download_model.py
 
-echo "সব শেষ — উপরের output দেখে path জানাও"
-sleep 3600
+if [ ! -f "/app/models/model.gguf" ]; then
+    echo "মডেল নেই!"
+    exit 1
+fi
+
+SIZE=$(du -sh /app/models/model.gguf | cut -f1)
+echo "মডেল প্রস্তুত ($SIZE)"
+
+echo "API Server চালু (port 7860)..."
+exec python3 /app/api_server.py
