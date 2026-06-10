@@ -38,9 +38,9 @@ RUN pip install --no-cache-dir \
     "httpx==0.28.1"
 
 # App files
-COPY download_model_v8.py /app/download_model.py
-COPY api_server_v8.py /app/api_server.py
-COPY start_v8.sh /app/start.sh
+COPY download_model.py /app/download_model.py
+COPY api_server.py /app/api_server.py
+COPY start.sh /app/start.sh
 
 RUN chmod +x /app/start.sh
 RUN mkdir -p /app/models
