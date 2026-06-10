@@ -1,7 +1,16 @@
 FROM ghcr.io/ggml-org/llama.cpp:server AS llama_source
 FROM python:3.10-slim
 WORKDIR /app
+
 COPY --from=llama_source /app/llama-server /usr/local/bin/llama-server
+COPY --from=llama_source /app/libllama-server-impl.so /usr/local/lib/
+COPY --from=llama_source /app/libllama.so /usr/local/lib/
+COPY --from=llama_source /app/libggml.so /usr/local/lib/
+COPY --from=llama_source /app/libggml-cpu.so /usr/local/lib/
+COPY --from=llama_source /app/libggml-base.so /usr/local/lib/
+
+RUN ldconfig
+
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libgomp1 libopenblas0 curl bash \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
