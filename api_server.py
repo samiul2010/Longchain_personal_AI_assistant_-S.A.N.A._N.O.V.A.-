@@ -34,7 +34,7 @@ llama_proc = None
 def start_llama_server():
     global llama_proc
     cmd = [
-        "llama-server",
+        "/app/llama-server",
         "--model",        MODEL_PATH,
         "--host",         "127.0.0.1",
         "--port",         str(LLAMA_PORT),
