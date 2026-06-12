@@ -23,7 +23,9 @@ os.environ["HF_HUB_ENABLE_HF_TRANSFER"] = "1"
 HF_TOKEN = os.environ.get("HF_TOKEN", None)
 
 SOURCES = [
-    ("unsloth/gemma-4-E4B-it-GGUF", "gemma-4-E4B-it-Q4_K_M.gguf"),
+    ("google/gemma-4-e2b-it-GGUF", "gemma-4-e2b-it-Q4_K_M.gguf"),
+    # যদি উপরের লিংকটি কাজ না করে, তবে এই বিকল্পটি ব্যবহার করতে পারেন
+    # ("second-state/Gemma-4-E2B-it-GGUF", "Gemma-4-E2B-it-Q4_K_M.gguf"),
 ]
 
 
