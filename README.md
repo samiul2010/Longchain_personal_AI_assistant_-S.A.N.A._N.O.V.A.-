@@ -1,5 +1,5 @@
 ---
-title: HFS1 Gemma4 12B API
+title: HFS1 Gemma4 E2B API
 emoji: 🤖
 colorFrom: blue
 colorTo: purple
@@ -8,5 +8,5 @@ pinned: false
 app_port: 7860
 ---
 
-# HFS_1 — Gemma 4 12B LLM API Server
+# HFS_1 — Gemma 4 E2B LLM API Server
 
