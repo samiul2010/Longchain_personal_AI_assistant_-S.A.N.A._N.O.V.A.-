@@ -1,25 +1,29 @@
-FROM ghcr.io/ggml-org/llama.cpp:server
+# ── Base image ────────────────────────────────────────────────────────────────
+FROM python:3.11-slim
 
-WORKDIR /app
+RUN apt-get update && apt-get install -y --no-install-recommends curl \
+    && rm -rf /var/lib/apt/lists/*
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    python3 python3-pip curl bash \
-    && apt-get clean && rm -rf /var/lib/apt/lists/*
+# ── Non-root user (required by Hugging Face Spaces) ──────────────────────────
+RUN useradd -m -u 1000 user
+ENV HOME=/home/user \
+    PATH=/home/user/.local/bin:$PATH
 
-RUN pip3 install --no-cache-dir --break-system-packages \
-    "huggingface_hub==0.27.0" \
-    "hf-transfer==0.1.8" \
-    "requests==2.32.3" \
-    "fastapi==0.115.5" \
-    "uvicorn==0.32.1" \
-    "httpx==0.28.1"
+WORKDIR $HOME/app
 
-COPY download_model.py /app/download_model.py
-COPY api_server.py /app/api_server.py
-COPY start.sh /app/start.sh
+# ── Install Python dependencies ───────────────────────────────────────────────
+COPY --chown=user requirements.txt .
+RUN pip install --no-cache-dir --upgrade pip \
+    && pip install --no-cache-dir -r requirements.txt
 
-RUN chmod +x /app/start.sh && mkdir -p /app/models
+# ── Copy application code ─────────────────────────────────────────────────────
+COPY --chown=user . .
+
+USER user
 
 EXPOSE 7860
-ENTRYPOINT []
-CMD ["/bin/bash", "/app/start.sh"]
+
+HEALTHCHECK --interval=60s --timeout=10s --start-period=15s \
+    CMD curl -f http://localhost:7860/health || exit 1
+
+CMD ["python", "app.py"]
