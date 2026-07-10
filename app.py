@@ -2,7 +2,7 @@
 public_relay/app.py — Public HF Space: Telegram ⇄ Private Space bridge
 ========================================================================
 এই Space-টা PUBLIC থাকবে, তাই Telegram সরাসরি এর সাথে কথা বলতে পারে
-(webhook পাঠাতে পারে, কোনো auth token ছাড়াই)। 
+(webhook পাঠাতে পারে, কোনো auth token ছাড়াই)।
 
 এখন python-telegram-bot লাইব্রেরি ব্যবহার করে:
 - সব ধরনের মেসেজ (টেক্সট, ফটো, ভিডিও, ডকুমেন্ট, অডিও, ভয়েস, লোকেশন, কন্ট্যাক্ট) হ্যান্ডেল করে
@@ -16,6 +16,7 @@ import asyncio
 import logging
 import json
 from pathlib import Path
+from typing import Optional, Dict, Any
 
 import httpx
 import gradio as gr
@@ -48,6 +49,7 @@ PRIVATE_SPACE_TOKEN = os.getenv("PRIVATE_SPACE_TOKEN", "").strip()
 RELAY_SECRET = os.getenv("RELAY_SECRET", "").strip() or None
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
 TELEGRAM_ALLOWED_CHAT_ID = os.getenv("TELEGRAM_ALLOWED_CHAT_ID", "").strip()
+PUBLIC_URL = os.getenv("PUBLIC_URL", "").strip()
 
 # ─── Download Directory ──────────────────────────────────────────────────
 DOWNLOAD_DIR = Path("/tmp/telegram_downloads")
@@ -58,31 +60,87 @@ app = FastAPI(title="Telegram Public Relay")
 client = httpx.AsyncClient(timeout=httpx.Timeout(120.0, connect=15.0))
 
 # ─── Telegram Bot Setup ──────────────────────────────────────────────────
-# HTTPXRequest with extended timeout
+telegram_app = None
 telegram_request = HTTPXRequest(
     connect_timeout=30.0,
     read_timeout=60.0,
     write_timeout=30.0,
 )
 
-# Application build
-telegram_app = None
-if TELEGRAM_BOT_TOKEN:
-    telegram_app = Application.builder() \
-        .token(TELEGRAM_BOT_TOKEN) \
-        .request(telegram_request) \
-        .build()
-    logger.info("✅ Telegram Application তৈরি হয়েছে")
+# ─── Helper Functions ──────────────────────────────────────────────────
+
+async def get_public_url() -> str:
+    """Hugging Face Space-এর পাবলিক URL Auto-Detect করে"""
+    
+    # 1. Environment Variable থেকে চেক করুন
+    if PUBLIC_URL:
+        return PUBLIC_URL.rstrip("/")
+    
+    # 2. Hugging Face Space-এর জন্য
+    space_id = os.getenv("SPACE_ID", "")
+    if space_id:
+        return f"https://{space_id}.hf.space"
+    
+    # 3. Railway-এর জন্য
+    railway_url = os.getenv("RAILWAY_PUBLIC_DOMAIN", "")
+    if railway_url:
+        return f"https://{railway_url}"
+    
+    # 4. Heroku-এর জন্য
+    heroku_url = os.getenv("HEROKU_APP_NAME", "")
+    if heroku_url:
+        return f"https://{heroku_url}.herokuapp.com"
+    
+    # 5. Localhost (ডেভেলপমেন্ট)
+    return "http://localhost:7860"
 
 
-# ─── Telegram Handlers ──────────────────────────────────────────────────
 async def is_allowed_user(update: Update) -> bool:
     """চেক করে এই Chat ID কি অনুমোদিত"""
     if not TELEGRAM_ALLOWED_CHAT_ID:
-        return True  # যদি কোনো চ্যাট আইডি সেট না থাকে, সবাইকে অনুমতি দাও
+        return True
     chat_id = str(update.effective_chat.id) if update.effective_chat else None
     return chat_id == TELEGRAM_ALLOWED_CHAT_ID
 
+
+async def send_telegram_message(chat_id: str, text: str) -> bool:
+    """Telegram-এ মেসেজ পাঠায়"""
+    if not TELEGRAM_BOT_TOKEN:
+        return False
+    
+    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+    try:
+        resp = await client.post(url, json={"chat_id": chat_id, "text": text})
+        return resp.status_code == 200
+    except Exception:
+        return False
+
+
+async def forward_to_private_space(data: Dict[str, Any]) -> bool:
+    """Private Space-এ ডেটা ফরওয়ার্ড করে"""
+    if not PRIVATE_SPACE_URL:
+        return False
+    
+    headers = {"Content-Type": "application/json"}
+    if PRIVATE_SPACE_TOKEN:
+        headers["Authorization"] = f"Bearer {PRIVATE_SPACE_TOKEN}"
+    if RELAY_SECRET:
+        headers["X-Relay-Secret"] = RELAY_SECRET
+    
+    try:
+        resp = await client.post(
+            f"{PRIVATE_SPACE_URL}/telegram_forward",
+            json=data,
+            headers=headers,
+            timeout=30.0
+        )
+        return resp.status_code == 200
+    except Exception as e:
+        logger.error(f"❌ Private Space forward failed: {e}")
+        return False
+
+
+# ─── Telegram Handlers ──────────────────────────────────────────────────
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """সব ধরনের মেসেজ হ্যান্ডেল করে - ফাইলসহ"""
@@ -98,13 +156,14 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     message_type = "unknown"
     file_info = None
     file_name = None
+    file = None
+    caption = ""
     
     if update.message.text:
         message_type = "text"
         text = update.message.text
         logger.info(f"📝 Text from {user_name}: {text[:50]}...")
         
-        # রিপ্লাই
         await update.message.reply_text(
             f"✅ ইয়ে আমি সফলভাবে কানেক্ট হয়েছি!\n\n"
             f"আপনার মেসেজ: {text[:100]}\n"
@@ -114,17 +173,12 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     elif update.message.photo:
         message_type = "photo"
-        # সবচেয়ে বড় সাইজের ফটো নিন
         photo = update.message.photo[-1]
         file = await context.bot.get_file(photo.file_id)
         file_name = f"photo_{photo.file_id[:8]}.jpg"
-        file_info = {
-            "file_id": photo.file_id,
-            "file_size": photo.file_size,
-            "file_unique_id": photo.file_unique_id,
-        }
+        file_info = {"file_id": photo.file_id, "file_size": photo.file_size}
         caption = update.message.caption or ""
-        logger.info(f"📷 Photo from {user_name}: {file_name}")
+        logger.info(f"📷 Photo from {user_name}")
         
     elif update.message.document:
         message_type = "document"
@@ -149,11 +203,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "file_id": video.file_id,
             "file_size": video.file_size,
             "duration": video.duration,
-            "width": video.width,
-            "height": video.height,
         }
         caption = update.message.caption or ""
-        logger.info(f"🎬 Video from {user_name}: {file_name}")
+        logger.info(f"🎬 Video from {user_name}")
         
     elif update.message.audio:
         message_type = "audio"
@@ -168,7 +220,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "title": audio.title,
         }
         caption = update.message.caption or ""
-        logger.info(f"🎵 Audio from {user_name}: {file_name}")
+        logger.info(f"🎵 Audio from {user_name}")
         
     elif update.message.voice:
         message_type = "voice"
@@ -180,7 +232,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "file_size": voice.file_size,
             "duration": voice.duration,
         }
-        logger.info(f"🎤 Voice from {user_name}: {file_name}")
+        logger.info(f"🎤 Voice from {user_name}")
         
     elif update.message.video_note:
         message_type = "video_note"
@@ -191,7 +243,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "file_id": vn.file_id,
             "file_size": vn.file_size,
             "duration": vn.duration,
-            "length": vn.length,
         }
         logger.info(f"🎥 Video Note from {user_name}")
         
@@ -204,9 +255,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "file_id": sticker.file_id,
             "file_size": sticker.file_size,
             "emoji": sticker.emoji,
-            "set_name": sticker.set_name,
         }
-        logger.info(f"🎨 Sticker from {user_name}: {sticker.emoji}")
+        logger.info(f"🎨 Sticker from {user_name}")
         
     elif update.message.location:
         message_type = "location"
@@ -215,7 +265,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "latitude": loc.latitude,
             "longitude": loc.longitude,
         }
-        logger.info(f"📍 Location from {user_name}: {loc.latitude}, {loc.longitude}")
+        logger.info(f"📍 Location from {user_name}")
         
     elif update.message.contact:
         message_type = "contact"
@@ -224,9 +274,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "phone_number": contact.phone_number,
             "first_name": contact.first_name,
             "last_name": contact.last_name,
-            "user_id": contact.user_id,
         }
-        logger.info(f"👤 Contact from {user_name}: {contact.first_name}")
+        logger.info(f"👤 Contact from {user_name}")
         
     else:
         await update.message.reply_text("❓ আমি এই ধরনের মেসেজ চিনতে পারিনি।")
@@ -234,45 +283,25 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     # ── ফাইল ডাউনলোড করো ────────────────────────────────────────────
     download_path = None
-    if file_name and file:
+    if file and file_name:
         try:
             download_path = DOWNLOAD_DIR / file_name
             await file.download_to_drive(download_path)
             logger.info(f"✅ ফাইল ডাউনলোড হয়েছে: {download_path}")
         except Exception as e:
-            logger.error(f"❌ ফাইল ডাউনলোড করতে ব্যর্থ: {e}")
+            logger.error(f"❌ ফাইল ডাউনলোড ব্যর্থ: {e}")
     
-    # ── Private Space-এ ফরওয়ার্ড করো (যদি কনফিগার করা থাকে) ──────────
-    if PRIVATE_SPACE_URL:
-        try:
-            # মেসেজ ডেটা তৈরি করো
-            payload = {
-                "chat_id": chat_id,
-                "user_id": user.id,
-                "user_name": user_name,
-                "message_type": message_type,
-                "file_info": file_info,
-                "caption": caption if 'caption' in dir() else None,
-                "download_path": str(download_path) if download_path else None,
-                "timestamp": update.message.date.isoformat() if update.message else None,
-            }
-            
-            # Private Space-এ POST করো
-            headers = {"Content-Type": "application/json"}
-            if PRIVATE_SPACE_TOKEN:
-                headers["Authorization"] = f"Bearer {PRIVATE_SPACE_TOKEN}"
-            if RELAY_SECRET:
-                headers["X-Relay-Secret"] = RELAY_SECRET
-            
-            resp = await client.post(
-                f"{PRIVATE_SPACE_URL}/telegram_forward",
-                json=payload,
-                headers=headers,
-                timeout=30.0
-            )
-            logger.info(f"📤 Private Space-এ ফরওয়ার্ড করা হয়েছে: {resp.status_code}")
-        except Exception as e:
-            logger.error(f"❌ Private Space-এ ফরওয়ার্ড করতে ব্যর্থ: {e}")
+    # ── Private Space-এ ফরওয়ার্ড করো ──────────────────────────────
+    forward_data = {
+        "chat_id": chat_id,
+        "user_id": user.id,
+        "user_name": user_name,
+        "message_type": message_type,
+        "file_info": file_info,
+        "caption": caption,
+        "download_path": str(download_path) if download_path else None,
+    }
+    await forward_to_private_space(forward_data)
     
     # ── রিপ্লাই দাও ──────────────────────────────────────────────────
     reply_text = (
@@ -283,9 +312,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"💾 সাইজ: {file_info.get('file_size', 'N/A') if file_info else 'N/A'} bytes\n"
         f"📥 ডাউনলোড: {'✅ সম্পন্ন' if download_path else '❌ ব্যর্থ'}"
     )
-    
-    if message_type == "text":
-        reply_text += f"\n\n💬 টেক্সট: {update.message.text[:200]}"
     
     await update.message.reply_text(reply_text)
 
@@ -299,15 +325,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "👋 হ্যালো! আমি আপনার Telegram Relay Bot!\n\n"
         "আমি নিচের জিনিসগুলো হ্যান্ডেল করতে পারি:\n"
-        "📝 টেক্সট\n"
-        "📷 ফটো\n"
-        "📁 ডকুমেন্ট (PDF, ZIP, ইত্যাদি)\n"
-        "🎬 ভিডিও\n"
-        "🎵 অডিও\n"
-        "🎤 ভয়েস মেসেজ\n"
-        "🎨 স্টিকার\n"
-        "📍 লোকেশন\n"
-        "👤 কন্ট্যাক্ট\n\n"
+        "📝 টেক্সট\n📷 ফটো\n📁 ডকুমেন্ট\n🎬 ভিডিও\n"
+        "🎵 অডিও\n🎤 ভয়েস\n🎨 স্টিকার\n📍 লোকেশন\n👤 কন্ট্যাক্ট\n\n"
         "আমাকে যেকোনো কিছু পাঠান, আমি রিপ্লাই দেব!"
     )
 
@@ -324,35 +343,33 @@ def _zerogpu_placeholder():
     return "not used — placeholder for ZeroGPU hardware requirement"
 
 
-@app.on_event("startup")
-async def startup():
-    """অ্যাপ স্টার্টআপে Telegram Webhook সেট করে"""
-    if TELEGRAM_BOT_TOKEN and telegram_app:
-        # হ্যান্ডলার যোগ করো
-        telegram_app.add_handler(CommandHandler("start", start))
-        telegram_app.add_handler(MessageHandler(filters.ALL, handle_message))
-        telegram_app.add_error_handler(error_handler)
-        
-        # Webhook সেট করো
-        await set_webhook()
-        logger.info("✅ Telegram bot ready!")
-
-
-async def set_webhook():
-    """Telegram-এ Webhook URL সেট করে"""
+async def setup_telegram_bot():
+    """Telegram Bot সেটআপ করে"""
+    global telegram_app
+    
+    if not TELEGRAM_BOT_TOKEN:
+        logger.warning("⚠️ TELEGRAM_BOT_TOKEN সেট নেই")
+        return False
+    
+    # Application তৈরি করো
+    telegram_app = Application.builder() \
+        .token(TELEGRAM_BOT_TOKEN) \
+        .request(telegram_request) \
+        .build()
+    
+    # হ্যান্ডলার যোগ করো
+    telegram_app.add_handler(CommandHandler("start", start))
+    telegram_app.add_handler(MessageHandler(filters.ALL, handle_message))
+    telegram_app.add_error_handler(error_handler)
+    
+    # Webhook সেট করো
+    public_url = await get_public_url()
+    webhook_url = f"{public_url}/webhook_telegram"
+    
+    logger.info(f"🌐 Public URL: {public_url}")
+    logger.info(f"🔗 Setting webhook to: {webhook_url}")
+    
     try:
-        public_url = os.getenv("PUBLIC_URL", "")
-        if not public_url:
-            # Hugging Face Space URL auto-detect
-            space_id = os.getenv("SPACE_ID", "")
-            if space_id:
-                public_url = f"https://{space_id}.hf.space"
-            else:
-                public_url = "https://localhost:7860"
-        
-        webhook_url = f"{public_url}/webhook_telegram"
-        
-        # Webhook সেট করো
         await telegram_app.bot.set_webhook(
             url=webhook_url,
             secret_token=RELAY_SECRET,
@@ -361,12 +378,23 @@ async def set_webhook():
         )
         logger.info(f"✅ Webhook সেট করা হয়েছে: {webhook_url}")
         
-        # Webhook Info চেক করো
         info = await telegram_app.bot.get_webhook_info()
         logger.info(f"📋 Webhook Info: {info}")
+        return True
         
     except Exception as e:
         logger.error(f"❌ Webhook সেট করতে ব্যর্থ: {e}")
+        return False
+
+
+@app.on_event("startup")
+async def startup():
+    """অ্যাপ স্টার্টআপে Telegram Webhook সেট করে"""
+    _zerogpu_placeholder()
+    if TELEGRAM_BOT_TOKEN:
+        await setup_telegram_bot()
+    else:
+        logger.warning("⚠️ TELEGRAM_BOT_TOKEN সেট নেই")
 
 
 @app.on_event("shutdown")
@@ -380,20 +408,17 @@ async def shutdown():
 @app.post("/webhook_telegram")
 async def telegram_webhook(request: Request):
     """Telegram থেকে Webhook কল এখানে আসবে"""
-    # Secret Token Check
     if RELAY_SECRET:
         got = request.headers.get("X-Telegram-Bot-Api-Secret-Token", "")
         if got != RELAY_SECRET:
-            logger.warning("❌ Webhook: invalid secret token from Telegram")
+            logger.warning("❌ Webhook: invalid secret token")
             return Response(status_code=403, content='{"ok": false, "error": "forbidden"}')
     
     try:
         body = await request.body()
         data = json.loads(body)
         
-        # python-telegram-bot-এ প্রসেস করো
         if telegram_app:
-            # Update object তৈরি করো
             update = Update.de_json(data, telegram_app.bot)
             if update:
                 await telegram_app.process_update(update)
@@ -401,18 +426,15 @@ async def telegram_webhook(request: Request):
         
         return Response(content='{"ok": false, "error": "bot not ready"}', status_code=503)
         
-    except json.JSONDecodeError as e:
-        logger.error(f"❌ Invalid JSON: {e}")
-        return Response(content='{"ok": false, "error": "invalid json"}', status_code=400)
     except Exception as e:
-        logger.error(f"❌ Webhook processing error: {e}")
+        logger.error(f"❌ Webhook error: {e}")
         return Response(content='{"ok": false, "error": "internal error"}', status_code=500)
 
 
-# ─── Old Webhook Endpoint (Backward Compatible) ──────────────────────
+# ─── Old Webhook (Backward Compatible) ──────────────────────────────────
 @app.post("/webhook")
 async def old_webhook(request: Request):
-    """পুরোনো webhook endpoint - Private Space-এ ফরওয়ার্ড করে"""
+    """পুরোনো webhook - Private Space-এ ফরওয়ার্ড"""
     if not PRIVATE_SPACE_URL:
         return Response(status_code=500, content='{"error":"private_space_not_configured"}')
     
@@ -438,7 +460,8 @@ async def health():
         "relay_secret_configured": bool(RELAY_SECRET),
         "telegram_bot_configured": bool(TELEGRAM_BOT_TOKEN),
         "telegram_chat_configured": bool(TELEGRAM_ALLOWED_CHAT_ID),
-        "webhook_set": bool(telegram_app and telegram_app.bot),
+        "public_url": await get_public_url(),
+        "webhook_set": bool(telegram_app),
     }
 
 
@@ -448,7 +471,7 @@ async def index():
         "status": "running",
         "role": "telegram-public-relay",
         "telegram_bot_configured": bool(TELEGRAM_BOT_TOKEN),
-        "allowed_chat_configured": bool(TELEGRAM_ALLOWED_CHAT_ID),
+        "public_url": await get_public_url(),
     }
 
 
@@ -456,13 +479,12 @@ async def index():
 def main():
     with gr.Blocks(title="Telegram Public Relay") as demo:
         gr.Markdown(
-            "## 🤖 Telegram Public Relay (Python-Telegram-Bot)\n"
+            "## 🤖 Telegram Public Relay\n"
             "Status: running\n\n"
-            f"Private Space configured: **{bool(PRIVATE_SPACE_URL)}**\n"
-            f"Relay secret configured: **{bool(RELAY_SECRET)}**\n"
-            f"Telegram Bot configured: **{bool(TELEGRAM_BOT_TOKEN)}**\n"
-            f"Allowed Chat ID: **{TELEGRAM_ALLOWED_CHAT_ID or 'All users'}**\n\n"
-            "📥 ফাইল ডাউনলোড লোকেশন: `/tmp/telegram_downloads`"
+            f"Telegram Bot: **{'✅ Configured' if TELEGRAM_BOT_TOKEN else '❌ Missing'}**\n"
+            f"Allowed Chat: **{TELEGRAM_ALLOWED_CHAT_ID or 'All users'}**\n"
+            f"Private Space: **{'✅' if PRIVATE_SPACE_URL else '❌'}**\n\n"
+            f"📥 Downloads: `{DOWNLOAD_DIR}`"
         )
 
     global app
