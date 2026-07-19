@@ -19,7 +19,7 @@ memory = Memory(embedder={
     "provider": "google-generativeai",
     "config": {
         "model_name": "gemini-embedding-001",
-        "api_key": f"{api_key}",  # or set GOOGLE_API_KEY env var
+        "api_key": f"{os.getenv("LLM_API_KEY")}",  # or set GOOGLE_API_KEY env var
     },
 })
 
