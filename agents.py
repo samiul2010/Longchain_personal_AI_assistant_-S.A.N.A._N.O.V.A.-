@@ -15,11 +15,12 @@ _llm=LLM(
     model=os.getenv("LLM_MODEL")
 
 )
+lmmn=os.getenv("LLM_API_KEY")
 memory = Memory(embedder={
     "provider": "google-generativeai",
     "config": {
         "model_name": "gemini-embedding-001",
-        "api_key": f"{os.getenv("LLM_API_KEY")}",  # or set GOOGLE_API_KEY env var
+        "api_key": f"{lmmn}",  # or set GOOGLE_API_KEY env var
     },
 })
 
