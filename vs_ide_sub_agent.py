@@ -141,4 +141,13 @@ def _vs_ide_sub_agent() -> Agent:
         max_reasoning_attempts=2,
         memory=True,
         tools=_vs_ide_tools,
+        mcps=[
+            {
+                "name": "github-local",
+                "type": "stdio",
+                "command": "npx",
+                "args": ["-y", "@modelcontextprotocol/server-github"],
+                "env": {"GITHUB_PERSONAL_ACCESS_TOKEN": "_GITHUB_PAT"}
+            }
+        ]
     )
