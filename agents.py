@@ -40,15 +40,16 @@ main_assistant_agent= Agent(
         "who can be handed any task without hesitation and who never lets them down."
     ),
     llm=_llm,
+    inject_date=True,
     verbose=True,
     allow_delegation=True,
-    max_iter=10,
-    max_retry_limit=3,
+    max_iter=5,
+    max_retry_limit=1,
     respect_context_window=True,
     use_system_prompt=True,
     multimodal=True,
     reasoning=True,
-    max_reasoning_attempts=2,
+    max_reasoning_attempts=1,
    # memory=True,
 )
 
@@ -76,6 +77,7 @@ def main_agent(user_command: str,user_attachment: str | None = None) -> str:
         tasks=[main_task],
         process=Process.hierarchical,
         verbose=True,
+        memory=True
     )   
     # ---------------------------------------------------------------------------
     return str(main_crew.kickoff())
