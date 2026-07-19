@@ -48,7 +48,8 @@ main_assistant_agent= Agent(
     use_system_prompt=True,
     multimodal=True,
     reasoning=True,
-    memory=True,
+    max_reasoning_attempts=2,
+   # memory=True,
 )
 
 def main_agent(user_command: str,user_attachment: str | None = None) -> str:
