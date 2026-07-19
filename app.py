@@ -21,9 +21,9 @@ def chat_fn(message, history):
 demo = gr.ChatInterface(
     fn=chat_fn,
     multimodal=True,
-    type="messages",
     title="Personal Assistant",
     description="Chat with your assistant. You can attach a file with your message.",
 )
+
 
 chat_agent=demo.launch(server_name="0.0.0.0", server_port=7860)
