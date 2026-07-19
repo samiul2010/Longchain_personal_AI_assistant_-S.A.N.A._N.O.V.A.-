@@ -30,21 +30,59 @@ _sub_llm = LLM(
 # ---------------------------------------------------------------------------
 _GITHUB_PAT = os.getenv("GITHUB_PAT")
 
+# GitHub's "projects" toolset currently returns a tool with a multi-type JSON
+# schema (["string", "number", "boolean"]) that CrewAI's schema converter
+# can't parse yet, which crashes MCPServerAdapter at startup. So we leave
+# "projects" out and try the rest of the toolsets from most-complete to
+# least, falling back automatically if any set still fails to load - this
+# way we always end up with whatever the largest *working* set of tools is,
+# instead of the whole app crashing.
+_TOOLSET_FALLBACK_CHAIN = [
+    # 1) Everything except "projects" and the license-gated / remote-only extras
+    "context,repos,issues,pull_requests,users,actions,code_security,dependabot,"
+    "discussions,gists,git,labels,notifications,orgs,secret_protection,"
+    "security_advisories,stargazers",
+    # 2) A safer, smaller set in case one of the above still misbehaves
+    "context,repos,issues,pull_requests,users,actions,code_security",
+    # 3) GitHub's own documented default - the safest possible fallback
+    "context,repos,issues,pull_requests,users",
+]
+
+# Allow a manual override (e.g. once you know exactly which set works, or to
+# add "projects" back once CrewAI fixes the schema bug upstream).
+_manual_override = os.getenv("GITHUB_MCP_TOOLSETS")
+if _manual_override:
+    _TOOLSET_FALLBACK_CHAIN = [_manual_override] + _TOOLSET_FALLBACK_CHAIN
+
 _mcp_adapter = None
 _vs_ide_tools = []
 
 if _GITHUB_PAT:
-    _server_params = {
-        "url": "https://api.githubcopilot.com/mcp/",
-        "transport": "streamable-http",
-        "headers": {"Authorization": f"Bearer {_GITHUB_PAT}"},
-    }
-    # Kept alive for the app's lifetime (started once at import time), since
-    # main_agent() builds a fresh Task/Crew on every chat message but the
-    # sub-agent + its tools should persist across requests.
-    _mcp_adapter = MCPServerAdapter(_server_params)
-    _mcp_adapter.start()
-    _vs_ide_tools = _mcp_adapter.tools
+    for _toolsets in _TOOLSET_FALLBACK_CHAIN:
+        _server_params = {
+            "url": "https://api.githubcopilot.com/mcp/",
+            "transport": "streamable-http",
+            "headers": {
+                "Authorization": f"Bearer {_GITHUB_PAT}",
+                "X-MCP-Toolsets": _toolsets,
+            },
+        }
+        try:
+            _mcp_adapter = MCPServerAdapter(_server_params)
+            _mcp_adapter.start()
+            _vs_ide_tools = _mcp_adapter.tools
+            print(f"GitHub MCP connected with toolsets: {_toolsets}")
+            print(f"Loaded {len(_vs_ide_tools)} tool(s): {[t.name for t in _vs_ide_tools]}")
+            break
+        except Exception as e:
+            print(f"GitHub MCP toolset set failed ({_toolsets}): {e}")
+            _mcp_adapter = None
+            _vs_ide_tools = []
+    else:
+        print(
+            "WARNING: every GitHub MCP toolset combination failed to load - "
+            "the VS IDE sub-agent will run without any GitHub/repo tools."
+        )
 else:
     print(
         "WARNING: GITHUB_PAT not set - the VS IDE sub-agent will run without "
