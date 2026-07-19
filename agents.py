@@ -41,6 +41,7 @@ main_assistant_agent= Agent(
         "who can be handed any task without hesitation and who never lets them down."
     ),
     llm=_llm,
+    inject_date=True,
     verbose=True,
     allow_delegation=True,
     max_iter=10,
@@ -49,6 +50,7 @@ main_assistant_agent= Agent(
     use_system_prompt=True,
     multimodal=True,
     reasoning=True,
+    max_reasoning_attempts=1,
     memory=True,
 )
 
