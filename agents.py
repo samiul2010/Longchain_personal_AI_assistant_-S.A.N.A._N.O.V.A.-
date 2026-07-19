@@ -1,56 +1,86 @@
-import os 
-os.environ.setdefault("HF_HOME", "/tmp/hf_cache")
-os.makedirs(os.environ["HF_HOME"], exist_ok=True)
-import time
-import logging
+import os
 from dotenv import load_dotenv
-import threading
-from crewai import Agent, LLM, Crew, Task, Process
-from crewai.tools import tool
+from crewai import Agent, Task, Crew, Process,LLM
+from crewai_tools import SerperDevTool
+from crewai_files import File, FileBytes
 
 load_dotenv()
-logger = logging.getLogger(__name__)
 
 
+# ---------------------------------------------------------------------------# MAIN AGENT LLM
+# ---------------------------------------------------------------------------
 _llm=LLM(
     api_key=os.getenv("LLM_API_KEY"),
     model=os.getenv("LLM_MODEL")
+
 )
 
-def main_agent():
-    # Create an agent with all available parameters
-    agent = Agent(
-        role="Senior Data Scientist",
-        goal="Analyze and interpret complex datasets to provide actionable insights",
-        backstory="With over 10 years of experience in data science and machine learning, ",
-        llm="gpt-4",  # Default: OPENAI_MODEL_NAME or "gpt-4"
-        function_calling_llm=None,  # Optional: Separate LLM for tool calling
-        verbose=False,  # Default: False
-        allow_delegation=False,  # Default: False
-        max_iter=20,  # Default: 20 iterations
-        max_rpm=None,  # Optional: Rate limit for API calls
-        max_execution_time=None,  # Optional: Maximum execution time in seconds
-        max_retry_limit=2,  # Default: 2 retries on error
-        allow_code_execution=False,  # Default: False
-        code_execution_mode="safe",  # Default: "safe" (options: "safe", "unsafe")
-        respect_context_window=True,  # Default: True
-        use_system_prompt=True,  # Default: True
-        multimodal=False,  # Default: False
-        inject_date=False,  # Default: False
-        date_format="%Y-%m-%d",  # Default: ISO format
-        reasoning=False,  # Default: False
-        max_reasoning_attempts=None,  # Default: None
-        tools=[SerperDevTool()],  # Optional: List of tools
-        knowledge_sources=None,  # Optional: List of knowledge sources
-        embedder=None,  # Optional: Custom embedder configuration
-        system_template=None,  # Optional: Custom system prompt template
-        prompt_template=None,  # Optional: Custom prompt template
-        response_template=None,  # Optional: Custom response template
-        step_callback=None,  # Optional: Callback function for monitoring
+
+# ---------------------------------------------------------------------------
+# 1) Main Agent - the personal, trusted, all-purpose assistant
+# ---------------------------------------------------------------------------
+main_assistant_agent= Agent(
+    role="Chief Personal Assistant",
+    goal=(
+        "Carefully understand whatever the user asks for - a question, an "
+        "instruction, or an attached file - and complete that exact task with "
+        "maximum accuracy, depth, and relevance, whether it involves research, "
+        "writing, analysis, problem-solving, planning, or any other kind of "
+        "intellectual or administrative work, so the user can rely on a single, "
+        "highly capable, completely trustworthy assistant for anything they need."
+    ),
+    backstory=(
+        "You are a versatile, deeply experienced assistant who has spent years "
+        "working across research, analysis, writing, technology, business, and "
+        "creative fields. Your thinking is structured, your analysis is sharp, "
+        "and you always take the time to understand the fine details of every "
+        "instruction before acting. Whatever the user asks, you handle it with "
+        "patience, honesty, and complete care. You are not just a tool - you are "
+        "the user's most trusted, sharpest, and most reliable partner, someone "
+        "who can be handed any task without hesitation and who never lets them down."
+    ),
+    llm=_llm,
+    verbose=True,
+    allow_delegation=True,
+    max_iter=10,
+    max_retry_limit=3,
+    respect_context_window=True,
+    use_system_prompt=True,
+    multimodal=True,
+    reasoning=True,
+    memory=True,
+)
+
+def main_agent(user_command: str,user_attachment: str | None = None) -> str:
+    
+    attachment_files = {}
+    
+    if user_attachment is not None:
+        attachment_files["attached_file"] = File(source=user_attachment)
+    # ---------------------------------------------------------------------------
+    main_task = Task(
+        description=user_command,
+        expected_output=(
+            "A complete, clear, accurate, and directly usable result for whatever "
+            "task is described in the instruction."
+        ),
+        input_files=attachment_files
     )
 
 
- 
-    
-
-
+    # ---------------------------------------------------------------------------      
+    main_crew = Crew(
+        agents=[main_assistant_agent],
+        manager_agent=main_assistant_agent,
+        tasks=[main_task],
+        process=Process.hierarchical,
+        verbose=True,
+    )   
+    # ---------------------------------------------------------------------------
+    return str(main_crew.kickoff())
+  
+  
+if __name__ == "__main__":
+    from app import chat_agent
+    chat_agent()
+  
