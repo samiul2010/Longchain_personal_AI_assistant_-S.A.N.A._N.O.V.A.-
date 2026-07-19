@@ -1,6 +1,6 @@
 import os
 from dotenv import load_dotenv
-from crewai import Agent, Task, Crew, Process,LLM
+from crewai import Agent, Task, Crew, Process,LLM,Memory
 from crewai_tools import SerperDevTool
 from crewai_files import File, FileBytes
 from vs_ide_sub_agent import _vs_ide_sub_agent
@@ -15,6 +15,13 @@ _llm=LLM(
     model=os.getenv("LLM_MODEL")
 
 )
+memory = Memory(embedder={
+    "provider": "google-generativeai",
+    "config": {
+        "model_name": "gemini-embedding-001",
+        "api_key": f"{api_key}",  # or set GOOGLE_API_KEY env var
+    },
+})
 
 
 # ---------------------------------------------------------------------------
