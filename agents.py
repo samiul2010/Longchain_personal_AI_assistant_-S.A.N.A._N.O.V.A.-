@@ -70,7 +70,7 @@ def main_agent(user_command: str,user_attachment: str | None = None) -> str:
 
     # ---------------------------------------------------------------------------      
     main_crew = Crew(
-        agents=[main_assistant_agent],
+        agents=[],
         manager_agent=main_assistant_agent,
         tasks=[main_task],
         process=Process.hierarchical,
