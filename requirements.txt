@@ -1,5 +1,5 @@
 gradio>=4.44.0
-crewai>=1.15.4
+crewai[file-processing,google-genai]>=1.15.4
 crewai-tools
 crewai[file-processing]
 python-dotenv
