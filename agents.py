@@ -3,6 +3,7 @@ from dotenv import load_dotenv
 from crewai import Agent, Task, Crew, Process,LLM
 from crewai_tools import SerperDevTool
 from crewai_files import File, FileBytes
+from vs_ide_sub_agent import _vs_ide_sub_agent
 
 load_dotenv()
 
@@ -40,18 +41,30 @@ main_assistant_agent= Agent(
         "who can be handed any task without hesitation and who never lets them down."
     ),
     llm=_llm,
-    inject_date=True,
     verbose=True,
     allow_delegation=True,
-    max_iter=5,
-    max_retry_limit=1,
+    max_iter=10,
+    max_retry_limit=3,
     respect_context_window=True,
     use_system_prompt=True,
     multimodal=True,
     reasoning=True,
-    max_reasoning_attempts=1,
-   # memory=True,
+    memory=True,
 )
+
+# --------------------------------------------------------------------------
+#all sub agent object ()
+# --------------------------------------------------------------------------
+_mcp_vs_ide_code=_vs_ide_sub_agent()
+
+
+# --------------------------------------------------------------------------
+#all sub agent list []
+# --------------------------------------------------------------------------
+ALL_SUB_AGENT=[
+    _mcp_vs_ide_code
+
+]
 
 def main_agent(user_command: str,user_attachment: str | None = None) -> str:
     
@@ -72,12 +85,11 @@ def main_agent(user_command: str,user_attachment: str | None = None) -> str:
 
     # ---------------------------------------------------------------------------      
     main_crew = Crew(
-        agents=[],
+        agents=ALL_SUB_AGENT,
         manager_agent=main_assistant_agent,
         tasks=[main_task],
         process=Process.hierarchical,
         verbose=True,
-        memory=True
     )   
     # ---------------------------------------------------------------------------
     return str(main_crew.kickoff())
