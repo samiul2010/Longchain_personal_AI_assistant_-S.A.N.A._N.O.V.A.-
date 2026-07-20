@@ -16,7 +16,7 @@ _llm=LLM(
 
 )
 lmmn=os.getenv("LLM_API_KEY")
-memory = Memory(embedder={
+_memory = Memory(embedder={
     "provider": "google-generativeai",
     "config": {
         "model_name": "gemini-embedding-001",
@@ -59,7 +59,7 @@ main_assistant_agent= Agent(
     multimodal=True,
     reasoning=True,
     max_reasoning_attempts=1,
-    memory=True,
+    memory=_memory,
 )
 
 # --------------------------------------------------------------------------
