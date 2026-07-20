@@ -2,6 +2,8 @@ import os
 from dotenv import load_dotenv
 from crewai import Agent, LLM
 from crewai_tools import MCPServerAdapter
+from crewai.mcp import MCPServerSSE
+
 
 load_dotenv()
 
@@ -19,6 +21,14 @@ _sub_llm = LLM(
 # ---------------------------------------------------------------------------
 _GITHUB_PAT = os.getenv("GITHUB_PAT")
 
+# ---------------------------------------------------------------------------
+#mcp server set
+# ---------------------------------------------------------------------------
+git_hub=MCPServerSSE(
+    url="https://api.githubcopilot.com/mcp/",
+    headers={"Authorization": f"Bearer {_GITHUB_PAT}"},
+    cache_tools_list=True,
+),
 # ---------------------------------------------------------------------------
 # 1) Sub Agent - the VS Code / GitHub repo specialist
 # ---------------------------------------------------------------------------
@@ -69,5 +79,5 @@ def _vs_ide_sub_agent() -> Agent:
         reasoning=True,
         max_reasoning_attempts=1,
         #memory=True,
-        mcps=[f"https://api.githubcopilot.com/mcp/?api_key={_GITHUB_PAT}"]
+        mcps=[git_hub]
     )
