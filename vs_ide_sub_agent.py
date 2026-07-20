@@ -69,5 +69,5 @@ def _vs_ide_sub_agent() -> Agent:
         reasoning=True,
         max_reasoning_attempts=1,
         #memory=True,
-        mcps=[f"https://api.githubcopilot.com/mcp/?api_key={_GITHUB_PAT}]
+        mcps=[f"https://api.githubcopilot.com/mcp/?api_key={_GITHUB_PAT}"]
     )
