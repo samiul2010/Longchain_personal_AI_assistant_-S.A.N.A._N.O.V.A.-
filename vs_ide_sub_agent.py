@@ -24,11 +24,12 @@ _GITHUB_PAT = os.getenv("GITHUB_PAT")
 # ---------------------------------------------------------------------------
 #mcp server set
 # ---------------------------------------------------------------------------
-git_hub=MCPServerSSE(
-    url="https://api.githubcopilot.com/mcp/",
-    headers={"Authorization": f"Bearer {_GITHUB_PAT}"},
-    cache_tools_list=True,
-),
+git_hub=[MCPServerSSE(
+        url="https://api.githubcopilot.com/mcp/",
+        headers={"Authorization": f"Bearer {_GITHUB_PAT}"},
+        cache_tools_list=True,
+    )
+]
 # ---------------------------------------------------------------------------
 # 1) Sub Agent - the VS Code / GitHub repo specialist
 # ---------------------------------------------------------------------------
