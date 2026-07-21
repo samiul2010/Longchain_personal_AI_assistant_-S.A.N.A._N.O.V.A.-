@@ -100,6 +100,7 @@ def main_agent(user_command: str,user_attachment: str | None = None) -> str:
         tasks=[main_task],
         process=Process.hierarchical,
         verbose=True,
+        tracing=True,
     )   
     # ---------------------------------------------------------------------------
     return str(main_crew.kickoff())
