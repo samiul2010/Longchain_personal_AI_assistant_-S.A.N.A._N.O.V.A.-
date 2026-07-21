@@ -2,7 +2,7 @@ import os
 from dotenv import load_dotenv
 from crewai import Agent, LLM
 from crewai_tools import MCPServerAdapter
-from crewai.mcp import MCPServerSSE
+from crewai.mcp import MCPServerSSE,MCPServerStdio
 
 
 load_dotenv()
@@ -24,13 +24,12 @@ _GITHUB_PAT = os.getenv("GITHUB_PAT")
 # ---------------------------------------------------------------------------
 #mcp server set
 # ---------------------------------------------------------------------------
-git_hub=MCPServerSSE(
-    url="https://api.githubcopilot.com/mcp/",
-    headers={"Authorization": f"Bearer {_GITHUB_PAT}"},
-    cache_tools_list=True,
+git_hub=MCPServerStdio(
+    command="npx",
+    args=["-y", "@modelcontextprotocol/server-github"],
+    env={"GITHUB_PERSONAL_ACCESS_TOKEN": f"{_GITHUB_PAT}"},
 )
-
-# ---------------------------------------------------------------------------
+# ------------------------------------------------------------------------
 # 1) Sub Agent - the VS Code / GitHub repo specialist
 # ---------------------------------------------------------------------------
 def _vs_ide_sub_agent() -> Agent:
