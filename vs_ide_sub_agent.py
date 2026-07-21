@@ -1,7 +1,7 @@
 import os
 from dotenv import load_dotenv
 from crewai import Agent, LLM
-from crewai_tools import MCPServerAdapter
+from crewai_tools import MCPServerAdapter 
 from crewai.mcp import MCPServerSSE,MCPServerStdio
 
 
@@ -70,6 +70,8 @@ def _vs_ide_sub_agent() -> Agent:
             "execution that your current tools don't support."
         ),
         llm=_sub_llm,
+        mcps=[git_hub],
+        tools=[]
         inject_date=True,
         verbose=True,
         allow_delegation=False,
@@ -81,5 +83,5 @@ def _vs_ide_sub_agent() -> Agent:
         reasoning=True,
         max_reasoning_attempts=1,
         #memory=True,
-        mcps=[git_hub]
+        
     )
