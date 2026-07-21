@@ -10,7 +10,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Node.js ও npx ইনস্টল
 RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
     && apt-get install -y nodejs \
-    npx \
     && rm -rf /var/lib/apt/lists/*
     
 # ── GitHub MCP সার্ভার গ্লোবালি ইনস্টল ──────────────────────────────────
