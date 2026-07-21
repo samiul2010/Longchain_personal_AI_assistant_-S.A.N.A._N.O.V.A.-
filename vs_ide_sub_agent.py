@@ -68,6 +68,7 @@ def _vs_ide_sub_agent() -> Agent:
             "requires reading, editing, or changing something for real rather than "
             "just describing it. You are upfront when a request needs terminal/shell "
             "execution that your current tools don't support."
+            "You have many tools on GitHub. Use them to complete tasks."
         ),
         llm=_sub_llm,
         mcps=[git_hub],
@@ -75,13 +76,13 @@ def _vs_ide_sub_agent() -> Agent:
         inject_date=True,
         verbose=True,
         allow_delegation=False,
-        max_iter=2,
-        max_retry_limit=1,
+        max_iter=12,
+        max_retry_limit=9,
         respect_context_window=True,
         use_system_prompt=True,
         multimodal=True,
         reasoning=True,
-        max_reasoning_attempts=1,
+        max_reasoning_attempts=8,
         #memory=True,
         
     )
