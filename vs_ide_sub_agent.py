@@ -81,8 +81,8 @@ def _vs_ide_sub_agent() -> Agent:
         respect_context_window=True,
         use_system_prompt=True,
         multimodal=True,
-        reasoning=True,
-        max_reasoning_attempts=8,
+        #reasoning=True,
+        #max_reasoning_attempts=8,
         #memory=True,
         
     )
