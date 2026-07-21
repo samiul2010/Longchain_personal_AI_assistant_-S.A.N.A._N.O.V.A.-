@@ -64,8 +64,8 @@ main_assistant_agent= Agent(
     respect_context_window=True,
     use_system_prompt=True,
     multimodal=True,
-    reasoning=True,
-    max_reasoning_attempts=4,
+    #reasoning=True,
+    #max_reasoning_attempts=4,
     memory=_memory,
 )
 
