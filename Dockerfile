@@ -7,6 +7,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     git \
     && rm -rf /var/lib/apt/lists/*
+# Node.js ও npx ইনস্টল
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y nodejs    
 
 # ── Non-root user (required by Hugging Face Spaces) ──────────────────────────
 RUN useradd -m -u 1000 user
