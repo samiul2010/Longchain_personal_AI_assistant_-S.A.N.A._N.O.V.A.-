@@ -61,12 +61,12 @@ main_assistant_agent= Agent(
     allow_delegation=True,
     max_iter=10,
     max_retry_limit=6,
-    respect_context_window=True,
-    use_system_prompt=True,
-    multimodal=True,
-    #reasoning=True,
+    respect_context_window=False,
+    use_system_prompt=False,
+    multimodal=False,
+    reasoning=False,
     #max_reasoning_attempts=4,
-    memory=_memory,
+    #memory=_memory,
 )
 
 # --------------------------------------------------------------------------
