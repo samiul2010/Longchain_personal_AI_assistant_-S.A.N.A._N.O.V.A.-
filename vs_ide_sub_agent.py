@@ -29,7 +29,7 @@ git_hub=MCPServerStdio(
     args=["-y", "@modelcontextprotocol/server-github"],
     env={"GITHUB_PERSONAL_ACCESS_TOKEN": f"{_GITHUB_PAT}"},
     cache_tools_list=True,
-    tool_filter=False,
+    tool_filter=None,
 )
 # ------------------------------------------------------------------------
 # 1) Sub Agent - the VS Code / GitHub repo specialist
