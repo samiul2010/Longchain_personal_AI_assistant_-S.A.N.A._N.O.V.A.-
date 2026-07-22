@@ -72,7 +72,6 @@ def _vs_ide_sub_agent() -> Agent:
         ),
         llm=_sub_llm,
         mcps=[git_hub],
-        tools=[],
         inject_date=True,
         verbose=True,
         allow_delegation=False,
