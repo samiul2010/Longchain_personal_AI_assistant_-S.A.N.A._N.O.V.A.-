@@ -8,7 +8,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     nodejs\
     npm\
-    npx\
     && rm -rf /var/lib/apt/lists/*
     
 # ── GitHub MCP সার্ভার গ্লোবালি ইনস্টল ──────────────────────────────────
