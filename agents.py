@@ -78,10 +78,9 @@ _mcp_vs_ide_code=_vs_ide_sub_agent()
 # --------------------------------------------------------------------------
 #all sub agent list []
 # --------------------------------------------------------------------------
-ALL_SUB_AGENT=[
-    _mcp_vs_ide_code
+ALL_SUB_AGENT=_mcp_vs_ide_code
 
-]
+
 
 def main_agent(user_command: str,user_attachment: str | None = None) -> str:
     
