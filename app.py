@@ -24,6 +24,6 @@ demo = gr.ChatInterface(
     title="Personal Assistant",
     description="Chat with your assistant. You can attach a file with your message.",
 )
-
+from mcp_diagnostic import mcp_diagnostic
 
 chat_agent=demo.launch(server_name="0.0.0.0", server_port=7860)
