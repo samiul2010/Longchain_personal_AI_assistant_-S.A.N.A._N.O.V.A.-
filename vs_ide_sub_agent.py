@@ -4,7 +4,11 @@ from dotenv import load_dotenv
 from crewai import Agent, LLM
 from crewai_tools import MCPServerAdapter 
 from crewai.mcp import MCPServerSSE,MCPServerStdio
-
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 load_dotenv()
 
