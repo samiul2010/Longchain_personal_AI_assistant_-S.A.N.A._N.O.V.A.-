@@ -2,7 +2,7 @@ import gradio as gr
 
 from agents import main_agent,_mcp_vs_ide_code
 import logging
-logger = logging
+logger = logging()
 
 def chat_fn(message, history):
     """
