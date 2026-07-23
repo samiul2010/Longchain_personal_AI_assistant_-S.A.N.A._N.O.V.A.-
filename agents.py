@@ -116,7 +116,6 @@ def main_agent(user_command: str,user_attachment: str | None = None) -> str:
   
   
 if __name__ == "__main__":
-    from app import chat_agent
-    import mcp_diagnostic
+    from app import chat_agen
     chat_agent()
   
