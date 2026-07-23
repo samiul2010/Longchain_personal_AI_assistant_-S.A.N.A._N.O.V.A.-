@@ -33,7 +33,7 @@ git_hub=MCPServerStdio(
 
 from mcp import StdioServerParameters
 
-params = StdioServerParameters(command="server-github", args=[], env={"GITHUB_PERSONAL_ACCESS_TOKEN": _GITHUB_PAT,**os.environ})
+params = StdioServerParameters(command="npx", args=["-y","@modelcontextprotocol/server-github"], env={"GITHUB_PERSONAL_ACCESS_TOKEN": _GITHUB_PAT,**os.environ})
 with MCPServerAdapter(params) as tools:
     tool_names = [t.name for t in tools]
     logger.info(f"Available tools: {tool_names}")
