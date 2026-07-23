@@ -1,4 +1,5 @@
 import os
+import logging
 from dotenv import load_dotenv
 from crewai import Agent, LLM
 from crewai_tools import MCPServerAdapter 
@@ -34,7 +35,13 @@ from mcp import StdioServerParameters
 
 params = StdioServerParameters(command="server-github", args=[], env={"GITHUB_PERSONAL_ACCESS_TOKEN": _GITHUB_PAT,**os.environ})
 with MCPServerAdapter(params) as tools:
-    print([t.name for t in tools])
+    try:
+    with MCPServerAdapter(params) as tools:
+        tool_names = [t.name for t in tools]
+        logger.info(f"Available tools: {tool_names}")
+        logger.info(f"Total tools found: {len(tool_names)}")
+    except Exception as e:
+        logger.error(f"Error initializing MCP server: {e}", exc_info=True)
 # ------------------------------------------------------------------------
 # 1) Sub Agent - the VS Code / GitHub repo specialist
 # ---------------------------------------------------------------------------
