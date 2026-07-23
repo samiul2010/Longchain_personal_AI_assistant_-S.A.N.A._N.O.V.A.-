@@ -31,6 +31,9 @@ git_hub=MCPServerStdio(
     cache_tools_list=True,
     tool_filter=None,
 )
+
+with MCPServerAdapter(git_hub) as git_hub_tools:
+    return git_hub_tools
 # ------------------------------------------------------------------------
 # 1) Sub Agent - the VS Code / GitHub repo specialist
 # ---------------------------------------------------------------------------
@@ -71,7 +74,7 @@ def _vs_ide_sub_agent() -> Agent:
             "You have many tools on GitHub. Use them to complete tasks."
         ),
         llm=_sub_llm,
-        mcps=[git_hub],
+        tools=[git_hub_tools],
         inject_date=True,
         verbose=True,
         allow_delegation=False,
