@@ -2,5 +2,5 @@ gradio>=4.44.0
 crewai[file-processing,google-genai,mcp]==1.15.5
 crewai-tools[mcp]==1.15.5
 google-generativeai
-
+mcp
 python-dotenv
