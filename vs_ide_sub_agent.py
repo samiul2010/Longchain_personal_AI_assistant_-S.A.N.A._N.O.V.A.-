@@ -14,8 +14,6 @@ _sub_llm = LLM(
     api_key=os.getenv("SUB_LLM_API_KEY"),
     model=os.getenv("SUB_LLM_MODEL"),
 )
-
-
 # ---------------------------------------------------------------------------
 #(repo, project, etc. - keep it as narrow as possible)
 # ---------------------------------------------------------------------------
@@ -32,7 +30,11 @@ git_hub=MCPServerStdio(
     tool_filter=None,
 )
 
+from mcp import StdioServerParameters
 
+params = StdioServerParameters(command="server-github", args=[], env={"GITHUB_PERSONAL_ACCESS_TOKEN": _GITHUB_PAT,**os.environ})
+with MCPServerAdapter(params) as tools:
+    print([t.name for t in tools])
 # ------------------------------------------------------------------------
 # 1) Sub Agent - the VS Code / GitHub repo specialist
 # ---------------------------------------------------------------------------
