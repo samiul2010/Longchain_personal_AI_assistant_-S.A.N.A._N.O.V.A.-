@@ -15,7 +15,7 @@ def chat_fn(message, history):
     files = message.get("files", []) if isinstance(message, dict) else []
     attachment = files[0] if files else None
     import mcp_diagnostic
-    agent_instance = _vs_ide_sub_agent()
+    agent_instance = _mcp_vs_ide_code
     logger.info(f"[MCP-DIAG] Agent tools count: {len(agent_instance.tools or [])}")
     logger.info(f"[MCP-DIAG] Agent tool names: {[t.name for t in (agent_instance.tools or [])]}")
 
