@@ -8,7 +8,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     && rm -rf /var/lib/apt/lists/*
 # Node.js ও npx ইনস্টল
-RUN apt-get install -y nodejs npm
+RUN apt-get install -y nodejs
     
 # ── GitHub MCP সার্ভার গ্লোবালি ইনস্টল ──────────────────────────────────
 RUN npm install -g @modelcontextprotocol/server-github
