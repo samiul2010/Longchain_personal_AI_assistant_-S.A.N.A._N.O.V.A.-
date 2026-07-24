@@ -78,7 +78,9 @@ _mcp_vs_ide_code=_vs_ide_sub_agent()
 # --------------------------------------------------------------------------
 #all sub agent list []
 # --------------------------------------------------------------------------
-ALL_SUB_AGENT=_mcp_vs_ide_code
+ALL_SUB_AGENT=[
+    _mcp_vs_ide_code,
+]
 
 
 
@@ -96,16 +98,15 @@ def main_agent(user_command: str,user_attachment: str | None = None) -> str:
             "task is described in the instruction."
         ),
         input_files=attachment_files,
-        agent=ALL_SUB_AGENT,
     )
 
 
     # ---------------------------------------------------------------------------      
     main_crew = Crew(
-        agents=[],
-        manager_agent=ALL_SUB_AGENT,
+        agents=ALL_SUB_AGENT,
+        manager_agent=main_assistant_agent,
         tasks=[main_task],
-        process=Process.sequential,
+        process=Process.hierarchical,
         verbose=True,
 
     )
