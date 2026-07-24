@@ -90,3 +90,4 @@ def _vs_ide_sub_agent() -> Agent:
         #memory=True,
         
     )
+git_hub_mcp.stop()    
