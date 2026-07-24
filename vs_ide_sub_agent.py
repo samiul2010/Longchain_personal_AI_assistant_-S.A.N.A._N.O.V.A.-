@@ -31,8 +31,8 @@ git_hub = StdioServerParameters(
     args=["-y","@modelcontextprotocol/server-github"],
     env={"GITHUB_PERSONAL_ACCESS_TOKEN": _GITHUB_PAT,**os.environ}
 )
-git_hub_mcp=MCPServerAdapter(git_hub)
-git_hub_tools = git_hub_mcp.tools
+git_hub_mcp=MCPServerStdio(git_hub)
+#git_hub_tools = git_hub_mcp.tools
 
 # ---------------------------------------------------------------------------
 # 1) Sub Agent - the VS Code / GitHub repo specialist
@@ -74,8 +74,8 @@ def _vs_ide_sub_agent() -> Agent:
             "You have many tools on GitHub. Use them to complete tasks."
         ),
         llm=_sub_llm,
-        tools=git_hub_tools,
-        #mcps=[git_hub],
+        #tools=git_hub_tools,
+        mcps=[git_hub_tools],
         inject_date=True,
         verbose=True,
         allow_delegation=False,
