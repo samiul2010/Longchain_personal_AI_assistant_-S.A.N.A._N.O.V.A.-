@@ -34,7 +34,7 @@ git_hub = StdioServerParameters(
 git_hub_mcp=MCPServerAdapter(git_hub)
 git_hub_mcp.start()
 git_hub_tools = git_hub_mcp.tools
-git_hub.stop()
+git_hub_mcp.stop()
 # ---------------------------------------------------------------------------
 # 1) Sub Agent - the VS Code / GitHub repo specialist
 # ---------------------------------------------------------------------------
