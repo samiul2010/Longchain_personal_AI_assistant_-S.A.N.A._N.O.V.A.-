@@ -32,7 +32,6 @@ git_hub = StdioServerParameters(
     env={"GITHUB_PERSONAL_ACCESS_TOKEN": _GITHUB_PAT,**os.environ}
 )
 git_hub_mcp=MCPServerAdapter(git_hub)
-git_hub_mcp.start()
 git_hub_tools = git_hub_mcp.tools
 
 # ---------------------------------------------------------------------------
