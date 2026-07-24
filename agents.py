@@ -3,7 +3,7 @@ from dotenv import load_dotenv
 from crewai import Agent, Task, Crew, Process,LLM,Memory
 from crewai_tools import SerperDevTool
 from crewai_files import File, FileBytes
-from vs_ide_sub_agent import _vs_ide_sub_agent,git_hub
+from vs_ide_sub_agent import _vs_ide_sub_agent
 
 load_dotenv()
 
