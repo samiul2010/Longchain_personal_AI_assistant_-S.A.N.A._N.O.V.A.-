@@ -24,11 +24,18 @@ _GITHUB_PAT = os.getenv("GITHUB_PAT")
 # ---------------------------------------------------------------------------
 #mcp server set
 # ---------------------------------------------------------------------------
-params = StdioServerParameters(command="npx", args=["-y","@modelcontextprotocol/server-github"], env={"GITHUB_PERSONAL_ACCESS_TOKEN": _GITHUB_PAT,**os.environ})
-with MCPServerAdapter(params) as fh:
-    git_hub_tools =fh
-
-# ------------------------------------------------------------------------
+# GIT_HUB_MCP_SERVER_TOOLS
+# ---------------------------------------------------------------------------
+git_hub = StdioServerParameters(
+    command="npx",
+    args=["-y","@modelcontextprotocol/server-github"],
+    env={"GITHUB_PERSONAL_ACCESS_TOKEN": _GITHUB_PAT,**os.environ}
+)
+git_hub_mcp=MCPServerAdapter(git_hub)
+git_hub_mcp.start()
+git_hub_tools = git_hub_mcp.tools
+git_hub.stop()
+# ---------------------------------------------------------------------------
 # 1) Sub Agent - the VS Code / GitHub repo specialist
 # ---------------------------------------------------------------------------
 def _vs_ide_sub_agent() -> Agent:
