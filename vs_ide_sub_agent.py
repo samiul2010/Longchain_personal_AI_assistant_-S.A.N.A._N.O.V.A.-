@@ -4,11 +4,8 @@ from dotenv import load_dotenv
 from crewai import Agent, LLM
 from crewai_tools import MCPServerAdapter 
 from crewai.mcp import MCPServerSSE,MCPServerStdio
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
+from mcp import StdioServerParameters
+
 
 load_dotenv()
 
@@ -27,26 +24,10 @@ _GITHUB_PAT = os.getenv("GITHUB_PAT")
 # ---------------------------------------------------------------------------
 #mcp server set
 # ---------------------------------------------------------------------------
-git_hub=MCPServerStdio(
-    command="server-github",
-    args=[],
-    env={"GITHUB_PERSONAL_ACCESS_TOKEN": _GITHUB_PAT,**os.environ},
-    cache_tools_list=True,
-    tool_filter=None,
-)
-
-from mcp import StdioServerParameters
-
 params = StdioServerParameters(command="npx", args=["-y","@modelcontextprotocol/server-github"], env={"GITHUB_PERSONAL_ACCESS_TOKEN": _GITHUB_PAT,**os.environ})
 with MCPServerAdapter(params) as fh:
     git_hub_tools =fh
-try:
-    with MCPServerAdapter(params) as tools:
-        tool_names = [t.name for t in tools]
-        logger.info(f"Available tools: {tool_names}")
-        logger.info(f"Total tools found: {len(tool_names)}")
-except:
-    logger.error(f"Error initializing MCP server: {e}", exc_info=True)
+
 # ------------------------------------------------------------------------
 # 1) Sub Agent - the VS Code / GitHub repo specialist
 # ---------------------------------------------------------------------------
@@ -88,7 +69,7 @@ def _vs_ide_sub_agent() -> Agent:
         ),
         llm=_sub_llm,
         tools=git_hub_tools,
-        mcps=[git_hub],
+        #mcps=[git_hub],
         inject_date=True,
         verbose=True,
         allow_delegation=False,
