@@ -38,6 +38,8 @@ git_hub=MCPServerStdio(
 from mcp import StdioServerParameters
 
 params = StdioServerParameters(command="npx", args=["-y","@modelcontextprotocol/server-github"], env={"GITHUB_PERSONAL_ACCESS_TOKEN": _GITHUB_PAT,**os.environ})
+with MCPServerAdapter(params) as fh:
+    git_hub_tools =fh
 try:
     with MCPServerAdapter(params) as tools:
         tool_names = [t.name for t in tools]
@@ -85,6 +87,7 @@ def _vs_ide_sub_agent() -> Agent:
             "You have many tools on GitHub. Use them to complete tasks."
         ),
         llm=_sub_llm,
+        tools=[git_hub_tools]
         mcps=[git_hub],
         inject_date=True,
         verbose=True,
