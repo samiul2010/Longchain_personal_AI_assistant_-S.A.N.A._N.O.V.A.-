@@ -87,7 +87,7 @@ def _vs_ide_sub_agent() -> Agent:
             "You have many tools on GitHub. Use them to complete tasks."
         ),
         llm=_sub_llm,
-        tools=[git_hub_tools],
+        tools=git_hub_tools,
         mcps=[git_hub],
         inject_date=True,
         verbose=True,
