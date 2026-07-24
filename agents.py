@@ -3,7 +3,7 @@ from dotenv import load_dotenv
 from crewai import Agent, Task, Crew, Process,LLM,Memory
 from crewai_tools import SerperDevTool
 from crewai_files import File, FileBytes
-from vs_ide_sub_agent import _vs_ide_sub_agent
+from vs_ide_sub_agent import _vs_ide_sub_agent,git_hub_mcp
 
 load_dotenv()
 
@@ -113,6 +113,7 @@ def main_agent(user_command: str,user_attachment: str | None = None) -> str:
     
     # ---------------------------------------------------------------------------
     return str(main_crew.kickoff())
+    git_hub_mcp.stop()
   
   
 if __name__ == "__main__":
