@@ -95,7 +95,8 @@ def main_agent(user_command: str,user_attachment: str | None = None) -> str:
             "A complete, clear, accurate, and directly usable result for whatever "
             "task is described in the instruction."
         ),
-        input_files=attachment_files
+        input_files=attachment_files,
+        agent=ALL_SUB_AGENT,
     )
 
 
@@ -104,7 +105,7 @@ def main_agent(user_command: str,user_attachment: str | None = None) -> str:
         agents=[],
         manager_agent=ALL_SUB_AGENT,
         tasks=[main_task],
-        process=Process.hierarchical,
+        process=Process.sequential,
         verbose=True,
 
     )
