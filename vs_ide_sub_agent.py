@@ -5,7 +5,8 @@ from crewai import Agent, LLM
 from crewai_tools import MCPServerAdapter 
 from crewai.mcp import MCPServerSSE,MCPServerStdio,MCPServerHTTP
 from mcp import StdioServerParameters
-
+from langchain_community.agent_toolkits.github.toolkit import GitHubToolkit
+from langchain_community.utilities.github import GitHubAPIWrapper
 
 load_dotenv()
 
@@ -26,11 +27,15 @@ _GITHUB_PAT = os.getenv("GITHUB_PAT")
 # ---------------------------------------------------------------------------
 # GIT_HUB_MCP_SERVER_TOOLS
 # ---------------------------------------------------------------------------
-git_hub = StdioServerParameters(
-    
+git_hub= GitHubAPIWrapper(
+    github_personal_access_token=_GITHUB_PAT,
 )
-git_hub_mcp=MCPServerAdapter(git_hub)
-git_hub_tools = git_hub_mcp.tools
+
+git_hub_mcp = GitHubToolkit.from_github_api_wrapper(git_hub)
+git_hub_tools = github_toolkit.get_tools()
+
+#git_hub_mcp=MCPServerAdapter(git_hub)
+#git_hub_tools = git_hub_mcp.tools
 
 # ---------------------------------------------------------------------------
 # 1) Sub Agent - the VS Code / GitHub repo specialist
