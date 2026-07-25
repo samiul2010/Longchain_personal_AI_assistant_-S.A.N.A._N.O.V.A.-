@@ -31,7 +31,6 @@ git_hub = StdioServerParameters(
     args=["stdio"],
     env={
         "GITHUB_PERSONAL_ACCESS_TOKEN": _GITHUB_PAT,
-        "GITHUB_TOOLSETS": "all",
         **os.environ
     }
 )
