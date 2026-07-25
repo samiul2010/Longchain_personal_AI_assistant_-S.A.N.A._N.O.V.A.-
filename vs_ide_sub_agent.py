@@ -26,16 +26,11 @@ _GITHUB_PAT = os.getenv("GITHUB_PAT")
 # ---------------------------------------------------------------------------
 # GIT_HUB_MCP_SERVER_TOOLS
 # ---------------------------------------------------------------------------
-git_hub = StdioServerParameters(
-    command="npx",
-    args=[
-        "run",
-        "-i",
-        "--rm",
-        "-e", f"GITHUB_PERSONAL_ACCESS_TOKEN={_GITHUB_PAT}",
-        "ghcr.io/github/github-mcp-server:latest"
-    ],
-    env={"GITHUB_PERSONAL_ACCESS_TOKEN": _GITHUB_PAT,**os.environ}
+git_hub = MCPServerHTTP(
+    url="https://api.githubcopilot.com/mcp/",
+    headers={
+        "Authorization": f"Bearer {_GITHUB_PAT}"
+    }
 )
 git_hub_mcp=MCPServerAdapter(git_hub)
 git_hub_tools = git_hub_mcp.tools
