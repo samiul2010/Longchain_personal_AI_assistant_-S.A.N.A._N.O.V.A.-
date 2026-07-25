@@ -28,7 +28,7 @@ _GITHUB_PAT = os.getenv("GITHUB_PAT")
 # ---------------------------------------------------------------------------
 git_hub = MCPServerStdio(
     command="npx",
-    args=["server-github"],
+    args=["y","@mo-delcontextprotocol/server-github"],
     env={"GITHUB_PERSONAL_ACCESS_TOKEN": _GITHUB_PAT,**os.environ}
 )
 git_hub_mcp=MCPServerAdapter(git_hub)
@@ -78,7 +78,7 @@ def _vs_ide_sub_agent() -> Agent:
         #mcps=[
         #    MCPServerStdio(
         #        command="npx",
-        #        args=["-y","@modelcontextprotocol/server-github"],
+        #        args=["y","@mo-delcontextprotocol/server-github"],
         #        env={"GITHUB_PERSONAL_ACCESS_TOKEN": _GITHUB_PAT,**os.environ}
         #    )
         #],
