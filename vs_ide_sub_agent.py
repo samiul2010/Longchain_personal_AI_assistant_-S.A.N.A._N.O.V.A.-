@@ -3,7 +3,7 @@ import logging
 from dotenv import load_dotenv
 from crewai import Agent, LLM
 from crewai_tools import MCPServerAdapter 
-from crewai.mcp import MCPServerSSE,MCPServerStdio
+from crewai.mcp import MCPServerSSE,MCPServerStdio,MCPServerHTTP
 from mcp import StdioServerParameters
 
 
