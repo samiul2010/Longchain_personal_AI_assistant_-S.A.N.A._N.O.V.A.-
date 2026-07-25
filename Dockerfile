@@ -8,11 +8,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     nodejs\
     npm\
-    docker.io\
     && rm -rf /var/lib/apt/lists/*
     
 # ── GitHub MCP সার্ভার গ্লোবালি ইনস্টল ──────────────────────────────────
-RUN docker pull ghcr.io/github/github-mcp-server:latest
+#RUN docker pull ghcr.io/github/github-mcp-server:latest
 # ── Non-root user (required by Hugging Face Spaces) ──────────────────────────
 RUN useradd -m -u 1000 user
 ENV HOME=/home/user \
