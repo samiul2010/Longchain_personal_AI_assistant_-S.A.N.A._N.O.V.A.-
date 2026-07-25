@@ -26,13 +26,15 @@ _GITHUB_PAT = os.getenv("GITHUB_PAT")
 # ---------------------------------------------------------------------------
 # GIT_HUB_MCP_SERVER_TOOLS
 # ---------------------------------------------------------------------------
-git_hub = {
-    "url": "https://api.githubcopilot.com/mcp/",
-    "transport": "streamable-http",
-    "headers": {
-        "Authorization": f"Bearer {_GITHUB_PAT}"
-    },
-}
+git_hub = StdioServerParameters(
+    command="github-mcp-server",   # সরাসরি বাইনারি, Docker লাগবে না
+    args=["stdio"],
+    env={
+        "GITHUB_PERSONAL_ACCESS_TOKEN": _GITHUB_PAT,
+        "GITHUB_TOOLSETS": "all",
+        **os.environ
+    }
+)
 git_hub_mcp=MCPServerAdapter(git_hub)
 git_hub_tools = git_hub_mcp.tools
 
