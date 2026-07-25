@@ -26,7 +26,7 @@ _GITHUB_PAT = os.getenv("GITHUB_PAT")
 # ---------------------------------------------------------------------------
 # GIT_HUB_MCP_SERVER_TOOLS
 # ---------------------------------------------------------------------------
-git_hub = MCPServerHTTP(
+git_hub =  StdioServerParameters(
     url="https://api.githubcopilot.com/mcp/",
     headers={
         "Authorization": f"Bearer {_GITHUB_PAT}"
