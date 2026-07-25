@@ -8,16 +8,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     nodejs \
     npm \
-    golang-go \
     && rm -rf /var/lib/apt/lists/*
     
-# ── GitHub MCP সার্ভার সোর্স থেকে বিল্ড করা (Docker daemon ছাড়াই) ─────────
-RUN git clone --depth 1 https://github.com/github/github-mcp-server.git /tmp/github-mcp-server \
-    && cd /tmp/github-mcp-server \
-    && go build -o /usr/local/bin/github-mcp-server ./cmd/github-mcp-server \
-    && chmod +x /usr/local/bin/github-mcp-server \
-    && rm -rf /tmp/github-mcp-server
-    
+
 # ── Non-root user (required by Hugging Face Spaces) ──────────────────────────
 RUN useradd -m -u 1000 user
 ENV HOME=/home/user \
