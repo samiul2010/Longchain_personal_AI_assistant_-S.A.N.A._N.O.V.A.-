@@ -11,7 +11,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
     
 # ── GitHub MCP সার্ভার গ্লোবালি ইনস্টল ──────────────────────────────────
-RUN npm install -g github-mcp-server
+RUN npm install -g @github/mcp-server
 # ── Non-root user (required by Hugging Face Spaces) ──────────────────────────
 RUN useradd -m -u 1000 user
 ENV HOME=/home/user \
