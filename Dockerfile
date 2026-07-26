@@ -8,13 +8,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     nodejs \
     npm \
-    ca-certificates \
     && rm -rf /var/lib/apt/lists/*
     
-RUN curl -L https://github.com/github/github-mcp-server/releases/latest/download/github-mcp-server-linux-amd64 \
-    -o /usr/local/bin/github-mcp-server && \
-    chmod +x /usr/local/bin/github-mcp-server
-    
+#-------git_hub_mcp_server_install---------------
+RUN npm install -g @0xshariq/github-mcp-server
 # ── Non-root user (required by Hugging Face Spaces) ──────────────────────────
 RUN useradd -m -u 1000 user
 ENV HOME=/home/user \
