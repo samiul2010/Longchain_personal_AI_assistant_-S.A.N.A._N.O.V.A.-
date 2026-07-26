@@ -26,12 +26,9 @@ _GITHUB_PAT = os.getenv("GITHUB_PAT")
 # GIT_HUB_MCP_SERVER_TOOLS
 # ---------------------------------------------------------------------------
 git_hub_api = StdioServerParameters(
-    command="@0xshariq/github-mcp-server",
-    args=[], 
-    env={
-        "GITHUB_PERSONAL_ACCESS_TOKEN": _GITHUB_PAT,
-        **os.environ
-    }
+    command="npx",
+    args=["-y", "@0xshariq/github-mcp-server"], 
+    env={"GITHUB_PERSONAL_ACCESS_TOKEN": _GITHUB_PAT,**os.environ}
 )
 git_hub =MCPServerAdapter(git_hub_api)
 git_hub.start()
