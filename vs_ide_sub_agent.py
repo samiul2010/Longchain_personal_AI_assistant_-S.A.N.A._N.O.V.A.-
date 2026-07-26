@@ -7,6 +7,17 @@ from crewai.mcp import MCPServerSSE,MCPServerStdio,MCPServerHTTP
 from mcp import StdioServerParameters
 
 load_dotenv()
+import crewai.utilities.pydantic_schema_utils as _schema_utils
+
+_original_type_fn = _schema_utils._json_schema_to_pydantic_type
+
+def _patched_json_schema_to_pydantic_type(json_schema, *args, **kwargs):
+    if isinstance(json_schema.get("type"), list):
+        json_schema = {**json_schema, "type": "string"}
+    return _original_type_fn(json_schema, *args, **kwargs)
+
+_schema_utils._json_schema_to_pydantic_type = _patched_json_schema_to_pydantic_type
+
 
 
 # ---------------------------------------------------------------------------# SUB AGENT LLM
