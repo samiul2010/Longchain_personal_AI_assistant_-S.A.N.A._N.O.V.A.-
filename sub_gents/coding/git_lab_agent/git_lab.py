@@ -24,7 +24,7 @@ _GITLAB_PAT=os.getenv("GITLAB_PAT")
 # ---------------------------------------------------------------------------
 gitlab_server_params = StdioServerParameters(
     command="npx",
-    args=["-y", "@zereight/mcp-gitlab@2.1.18"],  # version pin করা থাকলে HF Space-এ predictable বিল্ড হয়
+    args=["-y", "@zereight/mcp-gitlab"],  # version pin করা থাকলে HF Space-এ predictable বিল্ড হয়
     env={
         "GITLAB_PERSONAL_ACCESS_TOKEN": os.getenv("GITLAB_PERSONAL_ACCESS_TOKEN", ""),
         "GITLAB_API_URL": os.getenv("GITLAB_API_URL", "https://gitlab.com/api/v4"),
