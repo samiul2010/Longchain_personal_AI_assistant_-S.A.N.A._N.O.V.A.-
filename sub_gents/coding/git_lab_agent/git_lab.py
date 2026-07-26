@@ -8,6 +8,7 @@ from mcp import StdioServerParameters
 load_dotenv()
 
 # ---------------------------------------------------------------------------# SUB AGENT LLM
+#llm api setup and configuration
 # ---------------------------------------------------------------------------
 _sub_llm = LLM(
     api_key=os.getenv("SUB_LLM_API_KEY"),
