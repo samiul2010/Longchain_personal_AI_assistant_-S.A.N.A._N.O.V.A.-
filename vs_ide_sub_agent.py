@@ -34,6 +34,7 @@ git_hub_api = StdioServerParameters(
     }
 )
 git_hub =MCPServerAdapter(git_hub_api)
+git_hub.start()
 git_hub_tools=git_hub.tools()
 
 
