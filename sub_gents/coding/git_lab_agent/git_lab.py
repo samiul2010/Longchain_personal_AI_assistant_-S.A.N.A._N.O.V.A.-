@@ -26,7 +26,7 @@ gitlab_server_params = StdioServerParameters(
     command="npx",
     args=["-y", "@zereight/mcp-gitlab"],  # version pin করা থাকলে HF Space-এ predictable বিল্ড হয়
     env={
-        "GITLAB_PERSONAL_ACCESS_TOKEN": os.getenv("GITLAB_PERSONAL_ACCESS_TOKEN", ""),
+        "GITLAB_PERSONAL_ACCESS_TOKEN":_GITLAB_PAT,
         "GITLAB_API_URL": os.getenv("GITLAB_API_URL", "https://gitlab.com/api/v4"),
         "GITLAB_READ_ONLY_MODE": os.getenv("GITLAB_READ_ONLY_MODE", "false"),
         "GITLAB_DISABLE_VERSION_CHECK": "true",
