@@ -26,9 +26,13 @@ _GITHUB_PAT = os.getenv("GITHUB_PAT")
 # GIT_HUB_MCP_SERVER_TOOLS
 # ---------------------------------------------------------------------------
 git_hub_api = StdioServerParameters(
-    command="npx",
-    args=["-y", "@0xshariq/github-mcp-server"], 
-    env={"GITHUB_PERSONAL_ACCESS_TOKEN": _GITHUB_PAT,**os.environ}
+    command="github-mcp-server",   # ✅ অফিসিয়াল Go বাইনারি (Dockerfile-এ বিল্ড করা)
+    args=["stdio"],
+    env={
+        "GITHUB_PERSONAL_ACCESS_TOKEN": _GITHUB_PAT,
+        "GITHUB_TOOLSETS": "repos,issues,pull_requests,code_security",
+        **os.environ
+    }
 )
 git_hub =MCPServerAdapter(git_hub_api)
 git_hub_tools=git_hub.tools()
