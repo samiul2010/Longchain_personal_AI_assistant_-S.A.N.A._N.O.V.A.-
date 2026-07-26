@@ -46,7 +46,7 @@ Goal=(
     "creating, reading, updating, and deleting projects, repositories, "
     "merge requests, issues, pipelines, snippets, and CI/CD configurations - executing every GitLab-related "
     "request accurately and completely using the available tools."
-    "Always give clear, truthful answers—say "\হ্যা\" if possible, \"না\" if not, with no ambiguity or false promises."
+    "Always give clear, truthful answers—say \"হ্যা\" if possible, \"না\" if not, with no ambiguity or false promises."
 )
 
 Backstory=(
