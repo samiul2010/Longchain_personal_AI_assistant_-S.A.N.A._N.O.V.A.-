@@ -2,12 +2,11 @@ import os
 import logging
 from dotenv import load_dotenv
 from crewai import Agent, LLM
-from crewai_tools import MCPServerAdapter 
-from crewai.mcp import MCPServerSSE,MCPServerStdio,MCPServerHTTP
+from crewai_tools import MCPServerAdapter
 from mcp import StdioServerParameters
+import crewai.utilities.pydantic_schema_utils as _schema_utils
 
 load_dotenv()
-import crewai.utilities.pydantic_schema_utils as _schema_utils
 
 _original_type_fn = _schema_utils._json_schema_to_pydantic_type
 
@@ -37,11 +36,11 @@ _GITHUB_PAT = os.getenv("GITHUB_PAT")
 # GIT_HUB_MCP_SERVER_TOOLS
 # ---------------------------------------------------------------------------
 git_hub_api = StdioServerParameters(
-    command="github-mcp-server",   # ✅ অফিসিয়াল Go বাইনারি (Dockerfile-এ বিল্ড করা)
+    command="github-mcp-server",
     args=["stdio"],
     env={
         "GITHUB_PERSONAL_ACCESS_TOKEN": _GITHUB_PAT,
-        "GITHUB_TOOLSETS": "repos,issues,pull_requests,code_security",
+        "GITHUB_TOOLSETS": "all",
         **os.environ
     }
 )
@@ -77,7 +76,7 @@ Backstory=(
 # ---------------------------------------------------------------------------
 def _git_hub_agent() -> Agent:
     return Agent(
-        Role="GitHub Manager Agent",
+        role="GitHub Manager Agent",
         goal=Goal,
         backstory=Backstory,
         llm=_sub_llm,
