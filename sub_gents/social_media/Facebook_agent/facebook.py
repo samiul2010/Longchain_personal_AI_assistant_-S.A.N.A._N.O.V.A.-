@@ -3,12 +3,12 @@ import logging
 from dotenv import load_dotenv
 from crewai import Agent, LLM
 from crewai_tools import MCPServerAdapter 
-from crewai.mcp import MCPServerSSE,MCPServerStdio,MCPServerHTTP
 from mcp import StdioServerParameters
 
 load_dotenv()
 
 # ---------------------------------------------------------------------------# SUB AGENT LLM
+# agent llm syrup
 # ---------------------------------------------------------------------------
 _sub_llm = LLM(
     api_key=os.getenv("SUB_LLM_API_KEY"),
@@ -17,14 +17,24 @@ _sub_llm = LLM(
 # ---------------------------------------------------------------------------
 #(page, post, group, ads, etc. - keep it as narrow as possible)
 # ---------------------------------------------------------------------------
-#এখানে টোকেন লোড করা হবে যদি প্রয়োজন হয় তাই এখানে খালি থাকে
+_FACEBOOK_AT=os.getenv("FACEBOOK_AT")
+_FACEBOOK_PID=os.getenv("FACEBOOK_PID")
 
-# ---------------------------------------------------------------------------
-#mcp server set
 # ---------------------------------------------------------------------------
 # FACEBOOK_MCP_SERVER_TOOLS
 # ---------------------------------------------------------------------------
-#টুলস বা এমসিবি সার্ভার অ্যাসেম্বেল করা হবে তাই এখানেও খালি থাকবে
+_facebook_mcp_server_params = StdioServerParameters(
+    command="npx",
+    args=["-y", "facebook-mcp-server"],
+    env={
+        "FACEBOOK_ACCESS_TOKEN":_FACEBOOK_AT ,
+        "FACEBOOK_PAGE_ID": _FACEBOOK_PID,
+        **os.environ,
+    },
+)
+_facebook_mcp_adapter = MCPServerAdapter(_facebook_mcp_server_params)
+facebook_tools=_facebook_mcp_adapter.tools
+
 # ---------------------------------------------------------------------------
 #BACKSTORY AND GOAL
 # ---------------------------------------------------------------------------
@@ -33,7 +43,7 @@ Goal=(
     "creating, reading, updating, and deleting posts, pages, groups, "
     "comments, stories, reels, and managing ad campaigns - executing every Facebook-related "
     "request accurately and completely using the available tools."
-    "Always give clear, truthful answers—say "হ্যাঁ" if possible, "না" if not, with no ambiguity or false promises."
+    "Always give clear, truthful answers—say \"হ্যাঁ\" if possible, \"না\" if not, with no ambiguity or false promises."
 )
 
 Backstory=(
@@ -55,7 +65,7 @@ Backstory=(
 # ---------------------------------------------------------------------------
 def _facebook_agent() -> Agent:
     return Agent(
-        Role="Facebook Manager Agent",
+        role="Facebook Manager Agent",
         goal=Goal,
         backstory=Backstory,
         llm=_sub_llm,
