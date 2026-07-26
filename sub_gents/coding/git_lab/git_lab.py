@@ -3,7 +3,6 @@ import logging
 from dotenv import load_dotenv
 from crewai import Agent, LLM
 from crewai_tools import MCPServerAdapter 
-from crewai.mcp import MCPServerSSE,MCPServerStdio,MCPServerHTTP
 from mcp import StdioServerParameters
 
 load_dotenv()
@@ -17,14 +16,28 @@ _sub_llm = LLM(
 # ---------------------------------------------------------------------------
 #(project, repo, pipeline, issue, merge_request, etc. - keep it as narrow as possible)
 # ---------------------------------------------------------------------------
-#এখানে টোকেন লোড করা হবে যদি প্রয়োজন হয় তাই এখানে খালি থাকে
+_GITLAB_PAT=os.getenv("GITLAB_PAT")
 
-# ---------------------------------------------------------------------------
-#mcp server set
+
 # ---------------------------------------------------------------------------
 # GIT_LAB_MCP_SERVER_TOOLS
 # ---------------------------------------------------------------------------
-#টুলস বা এমসিবি সার্ভার অ্যাসেম্বেল করা হবে তাই এখানেও খালি থাকবে
+gitlab_server_params = StdioServerParameters(
+    command="npx",
+    args=["-y", "@zereight/mcp-gitlab@2.1.18"],  # version pin করা থাকলে HF Space-এ predictable বিল্ড হয়
+    env={
+        "GITLAB_PERSONAL_ACCESS_TOKEN": os.getenv("GITLAB_PERSONAL_ACCESS_TOKEN", ""),
+        "GITLAB_API_URL": os.getenv("GITLAB_API_URL", "https://gitlab.com/api/v4"),
+        "GITLAB_READ_ONLY_MODE": os.getenv("GITLAB_READ_ONLY_MODE", "false"),
+        "GITLAB_DISABLE_VERSION_CHECK": "true",
+        **os.environ,
+    },
+)
+
+_gitlab_adapter = MCPServerAdapter(gitlab_server_params)
+git_lab_tools = _gitlab_adapter.tools
+
+
 # ---------------------------------------------------------------------------
 #BACKSTORY AND GOAL
 # ---------------------------------------------------------------------------
@@ -33,7 +46,7 @@ Goal=(
     "creating, reading, updating, and deleting projects, repositories, "
     "merge requests, issues, pipelines, snippets, and CI/CD configurations - executing every GitLab-related "
     "request accurately and completely using the available tools."
-    "Always give clear, truthful answers—say "হ্যাঁ" if possible, "না" if not, with no ambiguity or false promises."
+    "Always give clear, truthful answers—say "\হ্যা\" if possible, \"না\" if not, with no ambiguity or false promises."
 )
 
 Backstory=(
@@ -55,7 +68,7 @@ Backstory=(
 # ---------------------------------------------------------------------------
 def _git_lab_agent() -> Agent:
     return Agent(
-        Role="GitLab Manager Agent",
+        role="GitLab Manager Agent",
         goal=Goal,
         backstory=Backstory,
         llm=_sub_llm,
