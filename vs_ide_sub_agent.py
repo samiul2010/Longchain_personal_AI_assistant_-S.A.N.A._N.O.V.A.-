@@ -46,8 +46,7 @@ git_hub_api = StdioServerParameters(
     }
 )
 git_hub =MCPServerAdapter(git_hub_api)
-git_hub_tools=git_hub.tools()
-
+git_hub_tools=git_hub.tools
 
 # ---------------------------------------------------------------------------
 #BACKSTORY AND GOAL
