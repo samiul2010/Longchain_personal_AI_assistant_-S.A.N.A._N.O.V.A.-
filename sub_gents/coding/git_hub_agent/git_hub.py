@@ -56,7 +56,7 @@ Goal=(
     "creating, reading, updating, and deleting repositories, files, branches, "
     "commits, pull requests, and issues - executing every GitHub-related "
     "request accurately and completely using the available tools."
-    "Always give clear, truthful answers—say "হ্যাঁ" if possible, "না" if not, with no ambiguity or false promises."
+    "Always give clear, truthful answers—say \"হ্যাঁ\" if possible, \"না\" if not, with no ambiguity or false promises."
 )
 
 Backstory=(
