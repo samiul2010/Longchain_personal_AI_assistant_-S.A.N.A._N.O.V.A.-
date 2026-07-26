@@ -33,7 +33,7 @@ git_hub_api = StdioServerParameters(
         **os.environ
     }
 )
-git_hub =MCPServerAdapter(git_hub_api,200)
+git_hub =MCPServerAdapter(git_hub_api)
 git_hub_tools=git_hub.tools()
 
 
