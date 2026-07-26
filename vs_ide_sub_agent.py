@@ -5,8 +5,6 @@ from crewai import Agent, LLM
 from crewai_tools import MCPServerAdapter 
 from crewai.mcp import MCPServerSSE,MCPServerStdio,MCPServerHTTP
 from mcp import StdioServerParameters
-from langchain_community.agent_toolkits.github.toolkit import GitHubToolkit
-from langchain_community.utilities.github import GitHubAPIWrapper
 
 load_dotenv()
 
@@ -27,14 +25,18 @@ _GITHUB_PAT = os.getenv("GITHUB_PAT")
 # ---------------------------------------------------------------------------
 # GIT_HUB_MCP_SERVER_TOOLS
 # ---------------------------------------------------------------------------
-os.environ["GITHUB_PERSONAL_ACCESS_TOKEN"] = _GITHUB_PAT
-git_hub= GitHubAPIWrapper()
+git_hub_api = StdioServerParameters(
+    command="npx",
+    args=["-y", "@github/github-mcp-server"], 
+    env={
+        "GITHUB_PERSONAL_ACCESS_TOKEN": _GITHUB_PAT,
+        **os.environ
+    }
+)
+git_hub =MCPServerAdapter(git_hub_api)
+git_hub_tools=git_hub.tools()
 
-git_hub_mcp = GitHubToolkit.from_github_api_wrapper(git_hub)
-git_hub_tools = github_toolkit.get_tools()
 
-#git_hub_mcp=MCPServerAdapter(git_hub)
-#git_hub_tools = git_hub_mcp.tools
 # ---------------------------------------------------------------------------
 #BACKSTORY AND GOAL
 # ---------------------------------------------------------------------------
