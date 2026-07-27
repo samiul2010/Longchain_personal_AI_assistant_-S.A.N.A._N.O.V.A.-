@@ -73,6 +73,7 @@ def _git_lab_agent() -> Agent:
         goal=Goal,
         backstory=Backstory,
         llm=_sub_llm,
+        max_rpm=12,
         tools=git_lab_tools,
         inject_date=True,
         verbose=True,
