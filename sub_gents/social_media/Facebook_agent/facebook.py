@@ -24,8 +24,8 @@ _FACEBOOK_PID=os.getenv("FACEBOOK_PID")
 # FACEBOOK_MCP_SERVER_TOOLS
 # ---------------------------------------------------------------------------
 _facebook_mcp_server_params = StdioServerParameters(
-    command="uvx",
-    args=["just-facebook-mcp"],
+    command="just_facebook_mcp",
+    args=[],
     env={
         "FACEBOOK_ACCESS_TOKEN":_FACEBOOK_PAT ,
         "FACEBOOK_PAGE_ID": _FACEBOOK_PID,
