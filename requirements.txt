@@ -5,6 +5,7 @@ google-generativeai
 mcp
 uv
 uvx
+just-facebook-mcp
 langchain_community
 PyGithub
 python-dotenv
