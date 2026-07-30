@@ -17,7 +17,7 @@ _sub_llm = LLM(
 # ---------------------------------------------------------------------------
 #(page, post, group, ads, etc. - keep it as narrow as possible)
 # ---------------------------------------------------------------------------
-_FACEBOOK_AT=os.getenv("FACEBOOK_AT")
+_FACEBOOK_PAT=os.getenv("FACEBOOK_PAT")
 _FACEBOOK_PID=os.getenv("FACEBOOK_PID")
 
 # ---------------------------------------------------------------------------
@@ -27,7 +27,7 @@ _facebook_mcp_server_params = StdioServerParameters(
     command="npx",
     args=["-y", "facebook-mcp-server"],
     env={
-        "FACEBOOK_ACCESS_TOKEN":_FACEBOOK_AT ,
+        "FACEBOOK_ACCESS_TOKEN":_FACEBOOK_PAT ,
         "FACEBOOK_PAGE_ID": _FACEBOOK_PID,
         **os.environ,
     },
