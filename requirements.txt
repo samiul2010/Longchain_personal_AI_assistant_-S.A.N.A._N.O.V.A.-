@@ -1,10 +1,9 @@
 gradio>=4.44.0
-crewai[file-processing,google-genai,mcp]==1.15.5
-crewai-tools[mcp]==1.15.5
+crewai[file-processing,google-genai,mcp]==1.15.9
+crewai-tools[mcp]==1.15.9
 google-generativeai
 mcp
 uv
-uvx
 just-facebook-mcp
 langchain_community
 PyGithub
