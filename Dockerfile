@@ -10,6 +10,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     npm \
     golang-go \
     && rm -rf /var/lib/apt/lists/*
+curl -v https://pypi.org
+curl -v https://api.github.com
+curl -v https://graph.facebook.com
+    
     
 #-------git_hub_mcp_server_install---------------
 RUN git clone --depth 1 https://github.com/github/github-mcp-server.git /tmp/github-mcp-server \
