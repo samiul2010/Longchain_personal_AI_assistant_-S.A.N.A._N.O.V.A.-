@@ -21,8 +21,8 @@ def chat_fn(message, history):
 demo = gr.ChatInterface(
     fn=chat_fn,
     multimodal=True,
-    title="Personal Assistant",
-    description="Chat with your assistant. You can attach a file with your message.",
+    title="Personal Assistant(owner name:MD SAMIUL ISLAM)",
+    description="Chat with your assistant. You can attach a file with your message.Currently, this platform is not working properly due to the limitations of the platform and the lack of tokens for the LLM model. ",
 )
 
 chat_agent=demo.launch(server_name="0.0.0.0", server_port=7860)
