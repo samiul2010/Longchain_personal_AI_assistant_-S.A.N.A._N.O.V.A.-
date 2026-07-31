@@ -26,8 +26,8 @@ _YOUTUBE_MCP_TRANSPORT=os.getenv("YOUTUBE_MCP_TRANSPORT", "stdio")
 # YOUTUBE_MCP_SERVER_TOOLS
 # ---------------------------------------------------------------------------
 _youtube_mcp_server_params = StdioServerParameters(
-    command="npx",
-    args=["-y", "maagpi-youtube-mcp"],
+    command="maagpi-youtube-mcp",
+    args=[],
     env={
         "YOUTUBE_CLIENT_ID":_YOUTUBE_CID,
         "YOUTUBE_CLIENT_SECRET":_YOUTUBE_PCS,
