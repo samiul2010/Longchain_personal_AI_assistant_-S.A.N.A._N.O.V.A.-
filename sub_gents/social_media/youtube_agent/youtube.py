@@ -46,7 +46,7 @@ Goal=(
     "creating, reading, updating, and deleting videos, shorts, playlists, "
     "community posts, live streams, and managing channel settings - executing every YouTube-related "
     "request accurately and completely using the available tools."
-    "Always give clear, truthful answers—say "হ্যাঁ" if possible, "না" if not, with no ambiguity or false promises."
+    "Always give clear, truthful answers—say \"হ্যাঁ\" if possible, \"না\" if not, with no ambiguity or false promises."
 )
 
 Backstory=(
