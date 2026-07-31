@@ -17,7 +17,8 @@ RUN git clone --depth 1 https://github.com/github/github-mcp-server.git /tmp/git
     && go build -o /usr/local/bin/github-mcp-server ./cmd/github-mcp-server \
     && chmod +x /usr/local/bin/github-mcp-server \
     && rm -rf /tmp/github-mcp-server
-RUN npm install -g  @zereight/mcp-gitlab
+RUN npm install -g @zereight/mcp-gitlab
+RUN npm install -g maagpi-youtube-mcp
 # ── Non-root user (required by Hugging Face Spaces) ──────────────────────────
 RUN useradd -m -u 1000 user
 ENV HOME=/home/user \
