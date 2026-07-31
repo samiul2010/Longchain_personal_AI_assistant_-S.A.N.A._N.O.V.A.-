@@ -17,14 +17,27 @@ _sub_llm = LLM(
 # ---------------------------------------------------------------------------
 #(video, channel, playlist, shorts, live, etc. - keep it as narrow as possible)
 # ---------------------------------------------------------------------------
-#এখানে টোকেন লোড করা হবে যদি প্রয়োজন হয় তাই এখানে খালি থাকে
+_YOUTUBE_CID=os.getenv("YOUTUBE_CID")
+_YOUTUBE_PCS=os.getenv("YOUTUBE_CLIENT_SECRET")
+_YOUTUBE_MCP_TRANSPORT=os.getenv("YOUTUBE_MCP_TRANSPORT", "stdio")
+    
 
-# ---------------------------------------------------------------------------
-#mcp server set
 # ---------------------------------------------------------------------------
 # YOUTUBE_MCP_SERVER_TOOLS
 # ---------------------------------------------------------------------------
-#টুলস বা এমসিবি সার্ভার অ্যাসেম্বেল করা হবে তাই এখানেও খালি থাকবে
+_youtube_mcp_server_params = StdioServerParameters(
+    command="npx",
+    args=["-y", "maagpi-youtube-mcp"],
+    env={
+        "YOUTUBE_CLIENT_ID":_YOUTUBE_CID,
+        "YOUTUBE_CLIENT_SECRET":_YOUTUBE_PCS,
+        "YOUTUBE_MCP_TRANSPORT":_YOUTUBE_MCP_TRANSPORT,
+        **os.environ,
+    },
+)
+_youtube_mcp_adapter = MCPServerAdapter(_youtube_mcp_server_params)
+youtube_tools = _youtube_mcp_adapter.tools
+
 # ---------------------------------------------------------------------------
 #BACKSTORY AND GOAL
 # ---------------------------------------------------------------------------
@@ -55,7 +68,7 @@ Backstory=(
 # ---------------------------------------------------------------------------
 def _youtube_agent() -> Agent:
     return Agent(
-        Role="YouTube Manager Agent",
+        role="YouTube Manager Agent",
         goal=Goal,
         backstory=Backstory,
         llm=_sub_llm,
