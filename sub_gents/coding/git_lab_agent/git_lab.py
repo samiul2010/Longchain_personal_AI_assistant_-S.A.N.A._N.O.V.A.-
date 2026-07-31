@@ -25,7 +25,7 @@ _GITLAB_READ_ONLY_MODE=os.getenv("GITLAB_READ_ONLY_MODE", "false")
 # GIT_LAB_MCP_SERVER_TOOLS
 # ---------------------------------------------------------------------------
 gitlab_server_params = StdioServerParameters(
-    command="@zereight/mcp-gitlab",
+    command="zereight-mcp-gitlab",
     args=[],  # version pin করা থাকলে HF Space-এ predictable বিল্ড হয়
     env={
         "GITLAB_PERSONAL_ACCESS_TOKEN":_GITLAB_PAT,
