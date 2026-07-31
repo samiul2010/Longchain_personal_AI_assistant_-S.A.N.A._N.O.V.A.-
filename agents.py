@@ -76,7 +76,7 @@ main_assistant_agent= Agent(
     multimodal=False,
     reasoning=False,
     #max_reasoning_attempts=4,
-    #memory=_memory,
+    memory=_memory,
 )
 # ---------------------------------------------------------------------------
 #MAIN ASSISTANT AGENTING SYSTEM 
