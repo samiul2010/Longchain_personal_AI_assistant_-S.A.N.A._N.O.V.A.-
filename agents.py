@@ -16,13 +16,23 @@ _llm=LLM(
 
 )
 lmmn=os.getenv("LLM_API_KEY")
-_memory = Memory(embedder={
-    "provider": "google-generativeai",
-    "config": {
-        "model_name": "gemini-embedding-001",
-        "api_key": f"{lmmn}",  # or set GOOGLE_API_KEY env var
+_memory = Memory(
+    embedder={
+        "provider": "google-generativeai",
+        "config": {
+            "model_name": "gemini-embedding-001",
+            "api_key": f"{lmmn}",
+        },
     },
-})
+    storage="git_hub_agent/",
+    recency_weight=0.6,
+    semantic_weight=0.4,
+    importance_weight=0.3,
+    recency_half_life_days=7,
+    
+
+    
+)
 
 # ---------------------------------------------------------------------------
 #ASSISTANT AGENT BACKSTORY AND GOAL 
