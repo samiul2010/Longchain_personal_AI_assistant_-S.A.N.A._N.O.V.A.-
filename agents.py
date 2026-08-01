@@ -24,7 +24,7 @@ _memory = Memory(
             "api_key": f"{lmmn}",
         },
     },
-    storage="git_hub_agent/",
+    storage="/agent/memory/",
     recency_weight=0.6,
     semantic_weight=0.4,
     importance_weight=0.3,
