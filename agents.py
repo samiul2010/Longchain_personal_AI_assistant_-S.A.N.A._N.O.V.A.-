@@ -24,6 +24,7 @@ _memory = Memory(
             "api_key": f"{lmmn}",
         },
     },
+    llm="google/gemini-embedding-001",
     storage="/agent/memory/",
     recency_weight=0.6,
     semantic_weight=0.4,
