@@ -19,15 +19,19 @@ RUN git clone --depth 1 https://github.com/github/github-mcp-server.git /tmp/git
     && rm -rf /tmp/github-mcp-server
 RUN npm install -g @zereight/mcp-gitlab
 RUN npm install -g maagpi-youtube-mcp
+
+# ── Persistent memory directory shared by every agent ─────────────────────────
+# NOTE: on Hugging Face Spaces, attach your Persistent Storage volume at this
+# exact path (/agent). This mkdir/chmod is only a fallback for local/dev runs
+# where no volume is mounted — once HF's storage bucket is mounted at /agent,
+# its own permissions apply and this app writes only inside it.
+RUN mkdir -p /agent && chmod -R 777 /agent
+
 # ── Non-root user (required by Hugging Face Spaces) ──────────────────────────
 RUN useradd -m -u 1000 user
 ENV HOME=/home/user \
     PATH=/home/user/.local/bin:$PATH
 
-# ── Install Playwright and Chromium ──────────────────────────────────────────
-RUN pip install --no-cache-dir playwright>=1.40.0 && \
-    playwright install chromium && \
-    playwright install-deps chromium
 # ── Working directory ─────────────────────────────────────────────────────────
 WORKDIR $HOME/app
 
@@ -36,19 +40,18 @@ COPY --chown=user requirements.txt .
 RUN pip install --no-cache-dir --upgrade pip \
     && pip install --no-cache-dir -r requirements.txt
 
-
 # ── Copy application code ─────────────────────────────────────────────────────
 COPY --chown=user . .
 
 # ── Switch to non-root user ───────────────────────────────────────────────────
 USER user
 
-# ── Expose status web UI port (HF Spaces default) ─────────────────────────────
+# ── Expose web UI port (HF Spaces default) ─────────────────────────────────────
 EXPOSE 7860
 
 # ── Healthcheck ────────────────────────────────────────────────────────────────
 HEALTHCHECK --interval=60s --timeout=10s --start-period=30s \
-    CMD curl -f http://localhost:7860/health || exit 1
+    CMD curl -f http://localhost:7860/ || exit 1
 
-# ── Launch bot ────────────────────────────────────────────────────────────────
-CMD ["python", "agents.py"]
+# ── Launch app (FastAPI + Manus-style UI) ───────────────────────────────────────
+CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "7860"]
