@@ -1,52 +1,66 @@
 import os
-import logging
 from dotenv import load_dotenv
-from crewai import Agent, LLM
-from crewai_tools import MCPServerAdapter 
-from mcp import StdioServerParameters
+from langchain.chat_models import init_chat_model
+from langchain.agents import create_agent
+from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
+from langchain_mcp_adapters.client import MultiServerMCPClient
+
+from storage_paths import agent_dir
 
 load_dotenv()
 
-# ---------------------------------------------------------------------------# SUB AGENT LLM
-# agent llm syrup
 # ---------------------------------------------------------------------------
-_sub_llm = LLM(
-    api_key=os.getenv("SUB_LLM_API_KEY"),
+# AGENT IDENTITY / MEMORY LOCATION -> /agent/facebook_agent/ (persistent bucket)
+# ---------------------------------------------------------------------------
+AGENT_NAME = "facebook_agent"
+MEMORY_DIR = agent_dir(AGENT_NAME)
+DB_PATH = os.path.join(MEMORY_DIR, "state.db")
+
+# ---------------------------------------------------------------------------
+# SUB AGENT LLM
+# ---------------------------------------------------------------------------
+_sub_llm = init_chat_model(
     model=os.getenv("SUB_LLM_MODEL"),
+    api_key=os.getenv("SUB_LLM_API_KEY"),
 )
+
 # ---------------------------------------------------------------------------
-#(page, post, group, ads, etc. - keep it as narrow as possible)
+# (page, post, group, ads, etc. - keep it as narrow as possible)
 # ---------------------------------------------------------------------------
-_FACEBOOK_PAT=os.getenv("FACEBOOK_PAT")
-_FACEBOOK_PID=os.getenv("FACEBOOK_PID")
+_FACEBOOK_PAT = os.getenv("FACEBOOK_PAT")
+_FACEBOOK_PID = os.getenv("FACEBOOK_PID")
 
 # ---------------------------------------------------------------------------
 # FACEBOOK_MCP_SERVER_TOOLS
 # ---------------------------------------------------------------------------
-_facebook_mcp_server_params = StdioServerParameters(
-    command="just_facebook_mcp",
-    args=[],
-    env={
-        "FACEBOOK_ACCESS_TOKEN":_FACEBOOK_PAT ,
-        "FACEBOOK_PAGE_ID": _FACEBOOK_PID,
-        **os.environ,
-    },
+_mcp_client = MultiServerMCPClient(
+    {
+        "facebook": {
+            "transport": "stdio",
+            "command": "just_facebook_mcp",
+            "args": [],
+            "env": {
+                "FACEBOOK_ACCESS_TOKEN": _FACEBOOK_PAT or "",
+                "FACEBOOK_PAGE_ID": _FACEBOOK_PID or "",
+                **os.environ,
+            },
+        }
+    }
 )
-_facebook_mcp_adapter = MCPServerAdapter(_facebook_mcp_server_params)
-facebook_tools=_facebook_mcp_adapter.tools
 
 # ---------------------------------------------------------------------------
-#BACKSTORY AND GOAL
+# BACKSTORY AND GOAL
 # ---------------------------------------------------------------------------
-Goal=(
+GOAL = (
     "To expertly manage a user's Facebook account and pages - "
     "creating, reading, updating, and deleting posts, pages, groups, "
-    "comments, stories, reels, and managing ad campaigns - executing every Facebook-related "
-    "request accurately and completely using the available tools."
-    "Always give clear, truthful answers—say \"হ্যাঁ\" if possible, \"না\" if not, with no ambiguity or false promises."
+    "comments, stories, reels, and managing ad campaigns - executing every "
+    "Facebook-related request accurately and completely using the available "
+    "tools. "
+    'Always give clear, truthful answers—say "হ্যাঁ" if possible, "না" if not, with no ambiguity or false promises.'
 )
 
-Backstory=(
+BACKSTORY = (
     "You are a seasoned Facebook specialist with direct, live access to the "
     "user's actual Facebook account through your tools. You handle page "
     "management (creating, updating, deleting pages), post operations "
@@ -57,29 +71,28 @@ Backstory=(
     "irreversible, you proceed confidently as instructed, using your tools to "
     "complete the actual operation. You are upfront and clear if a request needs "
     "something your current tools don't support, rather than guessing or "
-    "fabricating a result."
+    "fabricating a result. "
     "Built by Samiul (ছামিউল), who values honesty above all, this agent never lies, distorts, or evades."
+)
+
+SYSTEM_PROMPT = GOAL + "\n\n" + BACKSTORY
+
+
+async def build_facebook_agent():
+    """
+    Builds the compiled Facebook sub-agent graph with its own persistent
+    sqlite-backed memory at /agent/facebook_agent/state.db.
+    """
+    tools = await _mcp_client.get_tools(server_name="facebook")
+
+    saver_cm = AsyncSqliteSaver.from_conn_string(DB_PATH)
+    checkpointer = await saver_cm.__aenter__()
+
+    agent = create_agent(
+        model=_sub_llm,
+        tools=tools,
+        system_prompt=SYSTEM_PROMPT,
+        name=AGENT_NAME,
+        checkpointer=checkpointer,
     )
-# ---------------------------------------------------------------------------
-# 1) Sub Agent - the Facebook / social media specialist
-# ---------------------------------------------------------------------------
-def _facebook_agent() -> Agent:
-    return Agent(
-        role="Facebook Manager Agent",
-        goal=Goal,
-        backstory=Backstory,
-        llm=_sub_llm,
-        tools=facebook_tools,
-        inject_date=True,
-        verbose=True,
-        allow_delegation=False,
-        max_iter=12,
-        max_retry_limit=9,
-        respect_context_window=False,
-        use_system_prompt=False,
-        multimodal=False,
-        reasoning=False,
-        #max_reasoning_attempts=8,
-        #memory=True,
-        
-    )
+    return agent, saver_cm
