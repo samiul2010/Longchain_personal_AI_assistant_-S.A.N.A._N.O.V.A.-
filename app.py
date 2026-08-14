@@ -27,7 +27,7 @@ os.makedirs(UPLOADS_DIR, exist_ok=True)
 _threads_lock = asyncio.Lock()
 
 app = FastAPI(title="Personal Assistant")
-app.mount("/static", StaticFiles(directory="static"), name="static")
+app.mount("/agent/static", StaticFiles(directory="static"), name="static")
 
 
 # ---------------------------------------------------------------------------
