@@ -1,10 +1,10 @@
 # ---------------------------------------------------------------------------
 # IMPORT_ALL_SUB_AGENT_BUILDERS
 # ---------------------------------------------------------------------------
-from sub_agents.git_hub_agent.git_hub import build_git_hub_agent, AGENT_NAME as GITHUB_NAME
-from sub_agents.git_lab_agent.git_lab import build_git_lab_agent, AGENT_NAME as GITLAB_NAME
-from sub_agents.facebook_agent.facebook import build_facebook_agent, AGENT_NAME as FACEBOOK_NAME
-from sub_agents.youtube_agent.youtube import build_youtube_agent, AGENT_NAME as YOUTUBE_NAME
+from sub_agents.coding.git_hub_agent.git_hub import build_git_hub_agent, AGENT_NAME as GITHUB_NAME
+from sub_agents.coding.git_lab_agent.git_lab import build_git_lab_agent, AGENT_NAME as GITLAB_NAME
+from sub_agents.social_media.facebook_agent.facebook import build_facebook_agent, AGENT_NAME as FACEBOOK_NAME
+from sub_agents.social_media.youtube_agent.youtube import build_youtube_agent, AGENT_NAME as YOUTUBE_NAME
 
 SUB_AGENT_NAMES = [GITHUB_NAME, GITLAB_NAME, FACEBOOK_NAME, YOUTUBE_NAME]
 
