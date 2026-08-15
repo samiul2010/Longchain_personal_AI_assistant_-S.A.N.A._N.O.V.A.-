@@ -22,7 +22,7 @@ RUN npm install -g \
   @zereight/mcp-gitlab \
   maagpi-youtube-mcp \
   @justanothermldude/mcp-exec
-
+RUN uv tool install just_facebook_mcp
 # ── Persistent memory directory shared by every agent ─────────────────────────
 # NOTE: on Hugging Face Spaces, attach your Persistent Storage volume at this
 # exact path (/agent). This mkdir/chmod is only a fallback for local/dev runs
