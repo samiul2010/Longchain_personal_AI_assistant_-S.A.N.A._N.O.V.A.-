@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Personal Assistant — MD SAMIUL ISLAM</title>
+<link rel="stylesheet" href="/static/style.css" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+Bengali:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <button id="newChatBtn" class="new-chat-btn">
+          <span class="icon">＋</span> নতুন কথোপকথন
+        </button>
+      </div>
+      <div class="thread-list" id="threadList"></div>
+      <div class="sidebar-footer">
+        <div class="owner-badge">
+          <div class="owner-avatar">S</div>
+          <div class="owner-meta">
+            <div class="owner-name">MD SAMIUL ISLAM</div>
+            <div class="owner-sub">Personal Assistant</div>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div class="topbar-title">Chief Personal Assistant</div>
+        <div class="topbar-sub">main_agent · supervisor</div>
+      </header>
+
+      <div class="chat-scroll" id="chatScroll">
+        <div class="empty-state" id="emptyState">
+          <div class="empty-icon">🤖</div>
+          <h2>আপনার সহকারী প্রস্তুত</h2>
+          <p>যেকোনো কাজ, প্রশ্ন বা নির্দেশনা লিখুন — প্রয়োজনে সহকারী নিজে থেকেই GitHub, GitLab, Facebook বা YouTube সাব-এজেন্টকে কাজ দেবে।</p>
+        </div>
+        <div class="messages" id="messages"></div>
+      </div>
+
+      <div class="composer">
+        <div class="attachment-chip" id="attachmentChip" style="display:none;">
+          <span id="attachmentName"></span>
+          <button id="removeAttachment">✕</button>
+        </div>
+        <div class="composer-row">
+          <button class="attach-btn" id="attachBtn" title="ফাইল সংযুক্ত করুন">📎</button>
+          <input type="file" id="fileInput" style="display:none" />
+          <textarea id="textInput" placeholder="আপনার সহকারীকে কিছু লিখুন..." rows="1"></textarea>
+          <button class="send-btn" id="sendBtn" title="পাঠান">➤</button>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <template id="stepTemplate">
+    <div class="step">
+      <div class="step-head">
+        <span class="step-icon"></span>
+        <span class="step-label"></span>
+        <span class="step-status">চলছে…</span>
+      </div>
+      <pre class="step-detail" style="display:none;"></pre>
+    </div>
+  </template>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
