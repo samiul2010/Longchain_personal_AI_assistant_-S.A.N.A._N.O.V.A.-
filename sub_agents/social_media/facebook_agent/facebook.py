@@ -40,7 +40,7 @@ _facebook_mcp = MultiServerMCPClient(
     {
         "facebook": {
             "transport": "stdio",
-            "command": "@justanothermldude/mcp-exec",
+            "command": "mcp-exec",
             "args": [],
             "env": {
                 "FACEBOOK_ACCESS_TOKEN": _FACEBOOK_PAT or "",
