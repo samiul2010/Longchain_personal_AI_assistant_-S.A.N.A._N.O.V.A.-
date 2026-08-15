@@ -10,9 +10,18 @@ from fastapi.responses import StreamingResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from langchain_core.messages import HumanMessage, AIMessage, ToolMessage
 
-from agents import get_main_agent, close_main_agent, AGENT_NAME
+from agents import main_assistant_agent, AGENT_NAME
 from all_sub_agents import SUB_AGENT_NAMES
 from storage_paths import agent_dir
+
+# ---------------------------------------------------------------------------
+# Resolve paths relative to THIS file, not the process's current working
+# directory (which may differ from the project root depending on how the
+# platform/container launches uvicorn) — avoids "Directory does not exist"
+# errors when mounting /static.
+# ---------------------------------------------------------------------------
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+STATIC_DIR = os.path.join(BASE_DIR, "static")
 
 # ---------------------------------------------------------------------------
 # PERSISTENCE PATHS — everything (thread index + uploaded files) lives inside
@@ -27,7 +36,7 @@ os.makedirs(UPLOADS_DIR, exist_ok=True)
 _threads_lock = asyncio.Lock()
 
 app = FastAPI(title="Personal Assistant")
-app.mount("/agent/static", StaticFiles(directory="static"), name="static")
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 
 # ---------------------------------------------------------------------------
@@ -75,25 +84,12 @@ async def _touch_thread(thread_id: str, title: str | None = None):
 
 
 # ---------------------------------------------------------------------------
-# STARTUP / SHUTDOWN
-# ---------------------------------------------------------------------------
-@app.on_event("startup")
-async def _startup():
-    await get_main_agent()
-
-
-@app.on_event("shutdown")
-async def _shutdown():
-    await close_main_agent()
-
-
-# ---------------------------------------------------------------------------
 # API: index page
 # ---------------------------------------------------------------------------
 @app.get("/")
 async def index():
     from fastapi.responses import FileResponse
-    return FileResponse("static/index.html")
+    return FileResponse(os.path.join(STATIC_DIR, "index.html"))
 
 
 # ---------------------------------------------------------------------------
@@ -210,10 +206,9 @@ def _messages_to_turns(messages):
 # ---------------------------------------------------------------------------
 @app.get("/api/history")
 async def history(thread_id: str):
-    graph = await get_main_agent()
     config = {"configurable": {"thread_id": thread_id}}
     try:
-        state = await graph.aget_state(config)
+        state = await main_assistant_agent.aget_state(config)
     except Exception:
         return JSONResponse({"turns": []})
 
@@ -238,7 +233,7 @@ async def chat(
     text: str = Form(""),
     attachment_path: str | None = Form(None),
 ):
-    graph = await get_main_agent()
+    graph = main_assistant_agent
     config = {"configurable": {"thread_id": thread_id}}
 
     user_text = text or ""

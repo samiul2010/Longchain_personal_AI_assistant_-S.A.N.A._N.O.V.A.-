@@ -2,10 +2,9 @@ import os
 from dotenv import load_dotenv
 from langchain.chat_models import init_chat_model
 from langgraph_supervisor import create_supervisor
-from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 
-from all_sub_agents import build_all_sub_agents
-from storage_paths import agent_dir
+from all_sub_agents import ALL_SUB_AGENTS
+from storage_paths import agent_dir, open_agent_sqlite
 
 load_dotenv()
 
@@ -13,6 +12,7 @@ load_dotenv()
 # AGENT IDENTITY / MEMORY LOCATION -> /agent/main_agent/ (persistent bucket)
 # ---------------------------------------------------------------------------
 AGENT_NAME = "main_agent"
+ROLE = "Chief Personal Assistant"
 MEMORY_DIR = agent_dir(AGENT_NAME)
 DB_PATH = os.path.join(MEMORY_DIR, "state.db")
 
@@ -25,9 +25,15 @@ _llm = init_chat_model(
 )
 
 # ---------------------------------------------------------------------------
+# STATE / MEMORY (sqlite, kept for this agent's whole lifetime, tuned to be
+# safe on S3-style / object-storage persistent buckets — see storage_paths.py)
+# ---------------------------------------------------------------------------
+_checkpointer = open_agent_sqlite(DB_PATH)
+
+# ---------------------------------------------------------------------------
 # ASSISTANT AGENT BACKSTORY AND GOAL
 # ---------------------------------------------------------------------------
-GOAL = (
+Goal = (
     "Carefully understand whatever the user asks for - a question, an "
     "instruction, or an attached file - and complete that exact task with "
     "maximum accuracy, depth, and relevance, whether it involves research, "
@@ -42,7 +48,7 @@ GOAL = (
     "ছামিউল আমাকে তৈরি করেছে"
 )
 
-BACKSTORY = (
+Backstory = (
     "You are a versatile, deeply experienced assistant who has spent years "
     "working across research, analysis, writing, technology, business, and "
     "creative fields. Your thinking is structured, your analysis is sharp, "
@@ -63,51 +69,50 @@ BACKSTORY = (
     "আমি ছামিউল এর তৈরি একটা ভার্চুয়াল রোবট বা এআই এসিস্ট্যান্ট এজেন্ট"
 )
 
-SUPERVISOR_PROMPT = GOAL + "\n\n" + BACKSTORY
+SUPERVISOR_PROMPT = f"You are the {ROLE}.\n\n" + Goal + "\n\n" + Backstory
 
 # ---------------------------------------------------------------------------
-# GLOBAL, LAZILY-BUILT SINGLETON (built once at app startup, reused per request)
+# 1) Main Agent - the personal, trusted, all-purpose assistant
+#    (built once, at import time, exactly like the sub agents)
 # ---------------------------------------------------------------------------
-_main_graph = None
-_all_checkpointer_cms = []
+_supervisor_builder = create_supervisor(
+    agents=ALL_SUB_AGENTS,
+    model=_llm,
+    prompt=SUPERVISOR_PROMPT,
+    supervisor_name=AGENT_NAME,
+    add_handoff_back_messages=True,
+    output_mode="full_history",
+)
+
+main_assistant_agent = _supervisor_builder.compile(
+    checkpointer=_checkpointer,
+    name=AGENT_NAME,
+)
 
 
-async def get_main_agent():
+# ---------------------------------------------------------------------------
+# MAIN ASSISTANT AGENTING SYSTEM
+# ---------------------------------------------------------------------------
+def main_agent(
+    user_command: str,
+    user_attachment: str | None = None,
+    thread_id: str = "default",
+) -> str:
     """
-    Returns the compiled main (supervisor) LangGraph agent, building it
-    (and every sub-agent + their persistent memories) on first call.
+    Single-shot, synchronous entry point - same call shape as the original
+    main_agent(user_command, user_attachment) -> str. `thread_id` is optional
+    and only used so multiple separate conversations (as shown in the app's
+    sidebar) each keep their own persisted history inside the same
+    main_assistant_agent graph/state.
     """
-    global _main_graph, _all_checkpointer_cms
+    text = user_command
+    if user_attachment:
+        text = f"{text}\n\n[সংযুক্ত ফাইল: {user_attachment}]"
 
-    if _main_graph is not None:
-        return _main_graph
-
-    sub_agents, sub_cms = await build_all_sub_agents()
-
-    supervisor_builder = create_supervisor(
-        agents=sub_agents,
-        model=_llm,
-        prompt=SUPERVISOR_PROMPT,
-        supervisor_name=AGENT_NAME,
-        add_handoff_back_messages=True,
-        output_mode="full_history",
+    config = {"configurable": {"thread_id": thread_id}}
+    result = main_assistant_agent.invoke(
+        {"messages": [{"role": "user", "content": text}]},
+        config=config,
     )
-
-    saver_cm = AsyncSqliteSaver.from_conn_string(DB_PATH)
-    checkpointer = await saver_cm.__aenter__()
-
-    _main_graph = supervisor_builder.compile(checkpointer=checkpointer, name=AGENT_NAME)
-    _all_checkpointer_cms = sub_cms + [saver_cm]
-
-    return _main_graph
-
-
-async def close_main_agent():
-    """Call on app shutdown to cleanly close every agent's sqlite connection."""
-    global _all_checkpointer_cms
-    for cm in _all_checkpointer_cms:
-        try:
-            await cm.__aexit__(None, None, None)
-        except Exception:
-            pass
-    _all_checkpointer_cms = []
+    final_message = result["messages"][-1]
+    return getattr(final_message, "content", str(final_message))
