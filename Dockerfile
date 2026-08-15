@@ -21,7 +21,7 @@ RUN git clone --depth 1 https://github.com/github/github-mcp-server.git /tmp/git
 RUN npm install -g \
   @zereight/mcp-gitlab \
   maagpi-youtube-mcp \
-  @justanothermldude/mcp-exec \
+  @justanothermldude/mcp-exec
 
 # ── Persistent memory directory shared by every agent ─────────────────────────
 # NOTE: on Hugging Face Spaces, attach your Persistent Storage volume at this
