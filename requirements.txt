@@ -8,6 +8,7 @@ langgraph-checkpoint-sqlite
 langchain-mcp-adapters
 langchain-core
 mcp
+aiosqlite
 
 # ---------------------------------------------------------------------------
 # LLM providers used by init_chat_model (add/remove based on which
