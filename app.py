@@ -3,6 +3,8 @@ import json
 import uuid
 import asyncio
 import shutil
+import logging
+import traceback
 from datetime import datetime, timezone
 
 from fastapi import FastAPI, UploadFile, File, Form
@@ -13,6 +15,9 @@ from langchain_core.messages import HumanMessage, AIMessage, ToolMessage
 from agents import main_assistant_agent, AGENT_NAME
 from all_sub_agents import SUB_AGENT_NAMES
 from storage_paths import agent_dir
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("personal_assistant")
 
 # ---------------------------------------------------------------------------
 # Resolve paths relative to THIS file, not the process's current working
@@ -37,6 +42,12 @@ _threads_lock = asyncio.Lock()
 
 app = FastAPI(title="Personal Assistant")
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+
+
+@app.exception_handler(Exception)
+async def _log_unhandled_exceptions(request, exc):
+    logger.error("Unhandled error on %s %s:\n%s", request.method, request.url.path, traceback.format_exc())
+    return JSONResponse({"error": str(exc)}, status_code=500)
 
 
 # ---------------------------------------------------------------------------
@@ -85,8 +96,12 @@ async def _touch_thread(thread_id: str, title: str | None = None):
 
 # ---------------------------------------------------------------------------
 # API: index page
+# NOTE: methods include HEAD because HF Spaces' own health-check / proxy
+# probes "/" with HEAD requests — a plain @app.get() route 405's those,
+# which repeated in the logs and can make the platform think the
+# container is unhealthy.
 # ---------------------------------------------------------------------------
-@app.get("/")
+@app.api_route("/", methods=["GET", "HEAD"])
 async def index():
     from fastapi.responses import FileResponse
     return FileResponse(os.path.join(STATIC_DIR, "index.html"))
@@ -245,8 +260,21 @@ async def chat(
     inputs = {"messages": [HumanMessage(content=user_text)]}
 
     async def event_stream():
+        iterator = graph.astream_events(inputs, config=config, version="v2").__aiter__()
         try:
-            async for event in graph.astream_events(inputs, config=config, version="v2"):
+            while True:
+                try:
+                    # Heartbeat every 15s of silence so reverse proxies
+                    # (HF Spaces included) don't treat an idle-but-alive
+                    # connection as dead and kill it mid-request — that
+                    # showed up client-side as a generic "Failed to fetch".
+                    event = await asyncio.wait_for(iterator.__anext__(), timeout=15)
+                except asyncio.TimeoutError:
+                    yield _sse({"type": "heartbeat"})
+                    continue
+                except StopAsyncIteration:
+                    break
+
                 kind = event.get("event")
                 node = (event.get("metadata") or {}).get("langgraph_node")
                 name = event.get("name")
@@ -284,9 +312,20 @@ async def chat(
 
             yield _sse({"type": "done"})
         except Exception as exc:  # noqa: BLE001
+            logger.error("chat stream failed:\n%s", traceback.format_exc())
             yield _sse({"type": "error", "message": str(exc)})
 
-    return StreamingResponse(event_stream(), media_type="application/x-ndjson")
+    return StreamingResponse(
+        event_stream(),
+        media_type="application/x-ndjson",
+        headers={
+            # Ask any intermediate reverse proxy (HF Spaces included) not
+            # to buffer this response — buffering a streaming response
+            # can look identical to a hang from the client's side.
+            "X-Accel-Buffering": "no",
+            "Cache-Control": "no-cache",
+        },
+    )
 
 
 if __name__ == "__main__":
