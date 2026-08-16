@@ -1,4 +1,7 @@
 import os
+import asyncio
+import aiosqlite
+from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 from dotenv import load_dotenv
 from langchain.chat_models import init_chat_model
 from langgraph_supervisor import create_supervisor
@@ -28,7 +31,13 @@ _llm = init_chat_model(
 # STATE / MEMORY (sqlite, kept for this agent's whole lifetime, tuned to be
 # safe on S3-style / object-storage persistent buckets — see storage_paths.py)
 # ---------------------------------------------------------------------------
-_checkpointer = open_agent_sqlite(DB_PATH)
+
+async def _make_checkpointer(db_path: str) -> AsyncSqliteSaver:
+    os.makedirs(os.path.dirname(db_path), exist_ok=True)
+    conn = await aiosqlite.connect(db_path)
+    return AsyncSqliteSaver(conn)
+
+_checkpointer = asyncio.run(_make_checkpointer(DB_PATH))
 
 # ---------------------------------------------------------------------------
 # ASSISTANT AGENT BACKSTORY AND GOAL
