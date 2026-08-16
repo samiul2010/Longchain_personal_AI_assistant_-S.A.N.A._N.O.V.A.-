@@ -23,6 +23,7 @@ DB_PATH = os.path.join(MEMORY_DIR, "state.db")
 # MAIN AGENT LLM
 # ---------------------------------------------------------------------------
 _llm = init_chat_model(
+    model_provider="google_genai",
     model=os.getenv("LLM_MODEL"),
     api_key=os.getenv("LLM_API_KEY"),
 )
