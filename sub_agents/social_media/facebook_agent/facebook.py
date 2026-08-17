@@ -2,6 +2,7 @@ import os
 import asyncio
 from dotenv import load_dotenv
 from langchain.chat_models import init_chat_model
+from model_utils import load_chat_model
 from langchain.agents import create_agent
 from langchain_mcp_adapters.client import MultiServerMCPClient
 
@@ -20,7 +21,7 @@ DB_PATH = os.path.join(MEMORY_DIR, "state.db")
 # ---------------------------------------------------------------------------
 # SUB AGENT LLM
 # ---------------------------------------------------------------------------
-_sub_llm = init_chat_model(
+_sub_llm = load_chat_model(
     model=os.getenv("SUB_LLM_MODEL"),
     api_key=os.getenv("SUB_LLM_API_KEY"),
 )
