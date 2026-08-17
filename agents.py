@@ -3,7 +3,7 @@ import asyncio
 import aiosqlite
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 from dotenv import load_dotenv
-from langchain_community.chat_models import ChatLiteLLM
+from langchain_litellm import ChatLiteLLM
 from langchain.chat_models import init_chat_model
 from langgraph_supervisor import create_supervisor
 
