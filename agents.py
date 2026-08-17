@@ -3,7 +3,7 @@ import asyncio
 import aiosqlite
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 from dotenv import load_dotenv
-from langchain_litellm import ChatLiteLLM
+from model_utils import load_chat_model
 from langchain.chat_models import init_chat_model
 from langgraph_supervisor import create_supervisor
 
@@ -23,9 +23,9 @@ DB_PATH = os.path.join(MEMORY_DIR, "state.db")
 # ---------------------------------------------------------------------------
 # MAIN AGENT LLM
 # ---------------------------------------------------------------------------
-_llm =ChatLiteLLM(
-    model=os.getenv("LLM_MODEL"),
-    api_key=os.getenv("LLM_API_KEY")
+_llm =load_chat_model(
+    os.getenv("LLM_MODEL"),
+    os.getenv("LLM_API_KEY")
 )
 #init_chat_model(
 #    model_provider="google_genai",
