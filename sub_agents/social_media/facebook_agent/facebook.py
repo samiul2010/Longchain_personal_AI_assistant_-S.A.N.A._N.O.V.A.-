@@ -2,7 +2,6 @@ import os
 import asyncio
 from dotenv import load_dotenv
 from langchain.chat_models import init_chat_model
-from model_utils import load_chat_model
 from langchain.agents import create_agent
 from langchain_mcp_adapters.client import MultiServerMCPClient
 
