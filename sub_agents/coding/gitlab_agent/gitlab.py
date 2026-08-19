@@ -4,7 +4,6 @@ from dotenv import load_dotenv
 from langchain.chat_models import init_chat_model
 from langchain.agents import create_agent
 from langchain_mcp_adapters.client import MultiServerMCPClient
-from langchain_litellm import ChatLiteLLM
 
 from storage_paths import agent_dir, open_agent_sqlite
 
@@ -21,7 +20,7 @@ DB_PATH = os.path.join(MEMORY_DIR, "state.db")
 # ---------------------------------------------------------------------------
 # SUB AGENT LLM
 # ---------------------------------------------------------------------------
-_sub_llm = ChatLiteLLM(
+_sub_llm = init_chat_model(
     model=os.getenv("SUB_LLM_MODEL"),
     api_key=os.getenv("SUB_LLM_API_KEY"),
 )
