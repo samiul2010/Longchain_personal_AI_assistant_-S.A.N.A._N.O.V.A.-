@@ -21,6 +21,7 @@ DB_PATH = os.path.join(MEMORY_DIR, "state.db")
 # SUB AGENT LLM
 # ---------------------------------------------------------------------------
 _sub_llm = init_chat_model(
+    model_provider=os.getenv("SUB_LLM_MODEL_PROVIDER")
     model=os.getenv("SUB_LLM_MODEL"),
     api_key=os.getenv("SUB_LLM_API_KEY"),
 )
