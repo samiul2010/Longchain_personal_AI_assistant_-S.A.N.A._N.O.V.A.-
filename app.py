@@ -242,6 +242,25 @@ def _sse(obj: dict) -> str:
     return json.dumps(obj, ensure_ascii=False) + "\n"
 
 
+def _owning_agent(ns: str, node: str | None) -> str | None:
+    """
+    Figures out which agent (the main supervisor, or a specific sub-agent)
+    an astream_events event actually belongs to.
+
+    Sub-agents built with create_agent() reuse the SAME internal node names
+    ("agent" for the model call, "tools" for the tool-call node) as the
+    top-level supervisor graph — so `langgraph_node` alone can't tell them
+    apart. LangGraph's checkpoint namespace encodes the nesting instead,
+    e.g. "git_hub_agent:<run-id>|agent:<run-id-2>" for a call happening
+    *inside* the git_hub_agent sub-graph, versus just "agent:<run-id>" for
+    the same node name running directly in the top-level graph.
+    """
+    if not ns:
+        return node
+    first_segment = ns.split("|")[0]
+    return first_segment.split(":")[0] or node
+
+
 @app.post("/api/chat")
 async def chat(
     thread_id: str = Form(...),
@@ -276,8 +295,15 @@ async def chat(
                     break
 
                 kind = event.get("event")
-                node = (event.get("metadata") or {}).get("langgraph_node")
+                metadata = event.get("metadata") or {}
+                node = metadata.get("langgraph_node")
                 name = event.get("name")
+                ns = metadata.get("langgraph_checkpoint_ns", "") or ""
+                owning_agent = _owning_agent(ns, node)
+                # No "|" in the namespace means this event is happening
+                # directly in the top-level graph (the main supervisor's
+                # own reasoning/answer), not inside a nested sub-agent.
+                is_top_level = "|" not in ns
 
                 if kind == "on_chain_start" and name in SUB_AGENT_NAMES and node == name:
                     yield _sse({"type": "agent_start", "agent": name})
@@ -285,7 +311,7 @@ async def chat(
                 elif kind == "on_tool_start":
                     yield _sse({
                         "type": "tool_start",
-                        "agent": node,
+                        "agent": owning_agent,
                         "tool": name,
                         "input": _stringify((event.get("data") or {}).get("input")),
                     })
@@ -294,12 +320,12 @@ async def chat(
                     output = (event.get("data") or {}).get("output")
                     yield _sse({
                         "type": "tool_end",
-                        "agent": node,
+                        "agent": owning_agent,
                         "tool": name,
                         "output": _stringify(output),
                     })
 
-                elif kind == "on_chat_model_stream" and node == AGENT_NAME:
+                elif kind == "on_chat_model_stream" and is_top_level:
                     chunk = (event.get("data") or {}).get("chunk")
                     text_piece = getattr(chunk, "content", "") if chunk else ""
                     if isinstance(text_piece, list):
