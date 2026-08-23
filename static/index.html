@@ -2,7 +2,7 @@
 <html lang="bn">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <title>Personal Assistant — MD SAMIUL ISLAM</title>
 <link rel="stylesheet" href="/static/style.css" />
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -10,11 +10,13 @@
 </head>
 <body>
   <div class="app">
-    <aside class="sidebar">
+    <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+    <aside class="sidebar" id="sidebar">
       <div class="sidebar-header">
         <button id="newChatBtn" class="new-chat-btn">
           <span class="icon">＋</span> নতুন কথোপকথন
         </button>
+        <button id="closeSidebarBtn" class="close-sidebar-btn" title="বন্ধ করুন">✕</button>
       </div>
       <div class="thread-list" id="threadList"></div>
       <div class="sidebar-footer">
@@ -30,8 +32,11 @@
 
     <main class="main">
       <header class="topbar">
-        <div class="topbar-title">Chief Personal Assistant</div>
-        <div class="topbar-sub">main_agent · supervisor</div>
+        <button id="menuBtn" class="menu-btn" title="মেনু">☰</button>
+        <div class="topbar-text">
+          <div class="topbar-title">Chief Personal Assistant</div>
+          <div class="topbar-sub">main_agent · supervisor</div>
+        </div>
       </header>
 
       <div class="chat-scroll" id="chatScroll">
