@@ -1,63 +1,94 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="bn">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-<title>Personal Assistant — MD SAMIUL ISLAM</title>
-<link rel="stylesheet" href="/static/style.css" />
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+Bengali:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#ffffff" />
+  <title>Chief Personal Assistant</title>
+  <link rel="stylesheet" href="/static/style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;650;700&family=Noto+Sans+Bengali:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 </head>
 <body>
-  <div class="app">
+  <div class="app" id="app">
     <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
-    <aside class="sidebar" id="sidebar">
+
+    <aside class="sidebar" id="sidebar" aria-label="কথোপকথন নেভিগেশন">
       <div class="sidebar-header">
-        <button id="newChatBtn" class="new-chat-btn">
-          <span class="icon">＋</span> নতুন কথোপকথন
-        </button>
-        <button id="closeSidebarBtn" class="close-sidebar-btn" title="বন্ধ করুন">✕</button>
+        <div class="brand-mark" aria-hidden="true"><span></span></div>
+        <span class="brand-name">SAMIUL AI</span>
+        <button id="closeSidebarBtn" class="icon-btn close-sidebar-btn" title="সাইডবার বন্ধ করুন" aria-label="সাইডবার বন্ধ করুন">×</button>
       </div>
-      <div class="thread-list" id="threadList"></div>
-      <div class="sidebar-footer">
+
+      <button id="newChatBtn" class="new-chat-btn">
+        <span class="new-chat-plus" aria-hidden="true">＋</span>
+        <span>নতুন চ্যাট</span>
+        <span class="shortcut">⌘ K</span>
+      </button>
+
+      <div class="sidebar-section-label">সাম্প্রতিক</div>
+      <div class="thread-list" id="threadList" aria-live="polite"></div>
+
+      <div class="sidebar-bottom">
+        <button class="sidebar-link" type="button" id="helpBtn"><span>?</span> সাহায্য ও গাইড</button>
         <div class="owner-badge">
           <div class="owner-avatar">S</div>
           <div class="owner-meta">
             <div class="owner-name">MD SAMIUL ISLAM</div>
             <div class="owner-sub">Personal Assistant</div>
           </div>
+          <span class="owner-more">•••</span>
         </div>
       </div>
     </aside>
 
     <main class="main">
       <header class="topbar">
-        <button id="menuBtn" class="menu-btn" title="মেনু">☰</button>
-        <div class="topbar-text">
-          <div class="topbar-title">Chief Personal Assistant</div>
-          <div class="topbar-sub">main_agent · supervisor</div>
+        <button id="menuBtn" class="icon-btn menu-btn" title="মেনু" aria-label="মেনু">☰</button>
+        <div class="topbar-identity">
+          <div class="agent-avatar"><span></span></div>
+          <div class="topbar-text">
+            <div class="topbar-title">Chief Personal Assistant</div>
+            <div class="topbar-sub"><span class="online-dot"></span> main_agent · supervisor</div>
+          </div>
+        </div>
+        <div class="topbar-actions">
+          <button class="icon-btn" id="clearChatBtn" title="নতুন চ্যাট" aria-label="নতুন চ্যাট">✎</button>
+          <button class="icon-btn" id="topMoreBtn" title="আরও অপশন" aria-label="আরও অপশন">•••</button>
         </div>
       </header>
 
       <div class="chat-scroll" id="chatScroll">
-        <div class="empty-state" id="emptyState">
-          <div class="empty-icon">🤖</div>
-          <h2>আপনার সহকারী প্রস্তুত</h2>
-          <p>যেকোনো কাজ, প্রশ্ন বা নির্দেশনা লিখুন — প্রয়োজনে সহকারী নিজে থেকেই GitHub, GitLab, Facebook বা YouTube সাব-এজেন্টকে কাজ দেবে।</p>
+        <div class="welcome" id="emptyState">
+          <div class="welcome-orb"><span></span></div>
+          <div class="eyebrow">আপনার ব্যক্তিগত এজেন্ট</div>
+          <h1>আজ কীভাবে সাহায্য করতে পারি?</h1>
+          <p>কাজ, প্রশ্ন বা কোনো আইডিয়া লিখুন। প্রয়োজন হলে আপনার এজেন্ট নিজেই সঠিক সাব-এজেন্টের কাছে কাজটি পাঠাবে।</p>
+          <div class="suggestion-grid" aria-label="দ্রুত শুরু করার অপশন">
+            <button class="suggestion-card" data-prompt="আজকের জন্য আমার একটি কাজের পরিকল্পনা তৈরি করো"><span class="suggestion-icon">✦</span><span>কাজের পরিকল্পনা তৈরি করো</span><span class="suggestion-arrow">↗</span></button>
+            <button class="suggestion-card" data-prompt="GitHub-এর সাম্প্রতিক কাজগুলো দেখে একটি সংক্ষিপ্ত রিপোর্ট দাও"><span class="suggestion-icon">⌘</span><span>GitHub-এর কাজের রিপোর্ট</span><span class="suggestion-arrow">↗</span></button>
+            <button class="suggestion-card" data-prompt="এই সপ্তাহের গুরুত্বপূর্ণ কাজগুলো গুছিয়ে দাও"><span class="suggestion-icon">☷</span><span>গুরুত্বপূর্ণ কাজ গুছিয়ে দাও</span><span class="suggestion-arrow">↗</span></button>
+            <button class="suggestion-card" data-prompt="আমার জন্য একটি সুন্দর ইমেইল লিখে দাও"><span class="suggestion-icon">✉</span><span>একটি ইমেইল লিখে দাও</span><span class="suggestion-arrow">↗</span></button>
+          </div>
         </div>
-        <div class="messages" id="messages"></div>
+        <div class="messages" id="messages" aria-live="polite"></div>
       </div>
 
-      <div class="composer">
-        <div class="attachment-chip" id="attachmentChip" style="display:none;">
-          <span id="attachmentName"></span>
-          <button id="removeAttachment">✕</button>
+      <div class="composer-area">
+        <div class="composer-hint" id="composerHint"><span class="hint-dot"></span> এজেন্ট প্রস্তুত</div>
+        <div class="attachment-chip" id="attachmentChip" hidden>
+          <span class="attachment-file-icon">▣</span><span id="attachmentName"></span>
+          <button id="removeAttachment" title="ফাইল সরান" aria-label="ফাইল সরান">×</button>
         </div>
-        <div class="composer-row">
-          <button class="attach-btn" id="attachBtn" title="ফাইল সংযুক্ত করুন">📎</button>
-          <input type="file" id="fileInput" style="display:none" />
-          <textarea id="textInput" placeholder="আপনার সহকারীকে কিছু লিখুন..." rows="1"></textarea>
-          <button class="send-btn" id="sendBtn" title="পাঠান">➤</button>
+        <div class="composer" id="composer">
+          <div class="composer-row">
+            <button class="composer-tool" id="attachBtn" title="ফাইল সংযুক্ত করুন" aria-label="ফাইল সংযুক্ত করুন">＋</button>
+            <input type="file" id="fileInput" hidden />
+            <textarea id="textInput" placeholder="আপনার এজেন্টকে কিছু লিখুন..." rows="1" aria-label="বার্তা লিখুন"></textarea>
+            <button class="send-btn" id="sendBtn" title="পাঠান" aria-label="পাঠান"><span>↑</span></button>
+          </div>
+          <div class="composer-footer"><span>Enter চাপলে পাঠানো হবে · Shift + Enter নতুন লাইন</span><span class="secure-label">⌁ নিরাপদ কথোপকথন</span></div>
         </div>
       </div>
     </main>
@@ -69,8 +100,9 @@
         <span class="step-icon"></span>
         <span class="step-label"></span>
         <span class="step-status">চলছে…</span>
+        <span class="step-chevron">⌄</span>
       </div>
-      <pre class="step-detail" style="display:none;"></pre>
+      <pre class="step-detail" hidden></pre>
     </div>
   </template>
 
