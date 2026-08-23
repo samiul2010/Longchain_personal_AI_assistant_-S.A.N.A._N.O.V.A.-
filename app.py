@@ -162,6 +162,28 @@ def _agent_from_tool_name(tool_name: str) -> str | None:
     return None
 
 
+def _extract_final_answer(messages) -> str:
+    """
+    Reliably pulls the assistant's final answer text straight out of the
+    graph's saved state, by walking backward from the end until either the
+    most recent HumanMessage or a qualifying AIMessage (one with no pending
+    tool calls) is found. This is the same, already-proven-correct source
+    /api/history uses — used here as the guaranteed fallback for live
+    chat, since matching the right event during token-by-token streaming
+    turned out to be fragile across LangGraph/provider versions.
+    """
+    for msg in reversed(messages):
+        if isinstance(msg, HumanMessage):
+            break
+        if isinstance(msg, AIMessage):
+            tool_calls = getattr(msg, "tool_calls", None) or []
+            if not tool_calls and msg.content:
+                content = msg.content if isinstance(msg.content, str) else _stringify(msg.content)
+                if content.strip():
+                    return content
+    return ""
+
+
 def _messages_to_turns(messages):
     """
     Walk a flattened LangGraph message history (as produced by
@@ -335,6 +357,20 @@ async def chat(
                         )
                     if text_piece:
                         yield _sse({"type": "token", "text": text_piece})
+
+            # Guaranteed final answer: don't rely solely on having
+            # correctly matched the right live token-stream event above
+            # (that filtering has proven fragile across LangGraph/provider
+            # versions) — read the real saved state instead, the same
+            # reliable source /api/history uses, and send the complete
+            # text as one event before signalling done.
+            try:
+                final_state = await graph.aget_state(config)
+                final_text = _extract_final_answer(final_state.values.get("messages", []))
+                if final_text:
+                    yield _sse({"type": "final_answer", "text": final_text})
+            except Exception:
+                logger.error("failed to read final state:\n%s", traceback.format_exc())
 
             yield _sse({"type": "done"})
         except Exception as exc:  # noqa: BLE001
