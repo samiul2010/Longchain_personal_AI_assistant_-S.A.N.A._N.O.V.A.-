@@ -11,10 +11,27 @@ const attachmentName = document.getElementById("attachmentName");
 const removeAttachment = document.getElementById("removeAttachment");
 const newChatBtn = document.getElementById("newChatBtn");
 const stepTemplate = document.getElementById("stepTemplate");
+const appEl = document.querySelector(".app");
+const menuBtn = document.getElementById("menuBtn");
+const closeSidebarBtn = document.getElementById("closeSidebarBtn");
+const sidebarBackdrop = document.getElementById("sidebarBackdrop");
 
 let currentThreadId = localStorage.getItem("assistant_thread_id") || null;
 let pendingAttachment = null; // {path, filename}
 let isStreaming = false;
+
+// ---------------------------------------------------------------------------
+// Mobile off-canvas sidebar
+// ---------------------------------------------------------------------------
+function openSidebar() {
+  appEl.classList.add("sidebar-open");
+}
+function closeSidebar() {
+  appEl.classList.remove("sidebar-open");
+}
+menuBtn.addEventListener("click", openSidebar);
+closeSidebarBtn.addEventListener("click", closeSidebar);
+sidebarBackdrop.addEventListener("click", closeSidebar);
 
 // ---------------------------------------------------------------------------
 // Thread sidebar
@@ -48,6 +65,7 @@ async function selectThread(threadId) {
   localStorage.setItem("assistant_thread_id", threadId);
   await loadThreads();
   await loadHistory();
+  closeSidebar();
 }
 
 newChatBtn.addEventListener("click", async () => {
@@ -56,6 +74,7 @@ newChatBtn.addEventListener("click", async () => {
   await selectThread(data.thread_id);
   messagesEl.innerHTML = "";
   emptyState.style.display = "block";
+  closeSidebar();
 });
 
 // ---------------------------------------------------------------------------
@@ -304,6 +323,11 @@ function handleEvent(evt, stepsWrap, bubble, activeSteps) {
     if (target) markStepDone(target, evt.output);
   } else if (evt.type === "token") {
     bubble.textContent += evt.text;
+  } else if (evt.type === "final_answer") {
+    // Authoritative final text straight from the saved graph state —
+    // overwrites whatever (if anything) the live token stream rendered,
+    // so the answer always shows even if live-token matching missed it.
+    bubble.textContent = evt.text;
   } else if (evt.type === "error") {
     bubble.textContent += "\n⚠️ " + evt.message;
   } else if (evt.type === "done") {
