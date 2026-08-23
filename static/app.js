@@ -10,6 +10,9 @@ const attachmentName = document.getElementById("attachmentName");
 const removeAttachment = document.getElementById("removeAttachment");
 const newChatBtn = document.getElementById("newChatBtn");
 const clearChatBtn = document.getElementById("clearChatBtn");
+const themeToggle = document.getElementById("themeToggle");
+const themeIcon = themeToggle?.querySelector(".theme-icon");
+const themeColorMeta = document.getElementById("themeColorMeta");
 const suggestionCards = document.querySelectorAll(".suggestion-card");
 const stepTemplate = document.getElementById("stepTemplate");
 const appEl = document.querySelector(".app");
@@ -30,6 +33,28 @@ const AGENT_LABELS = {
   facebook_agent: "Facebook Manager Agent",
   youtube_agent: "YouTube Manager Agent",
 };
+
+function applyTheme(theme) {
+  const nextTheme = theme === "dark" ? "dark" : "light";
+  document.body.dataset.theme = nextTheme;
+  if (themeIcon) themeIcon.textContent = nextTheme === "dark" ? "☀" : "☾";
+  if (themeToggle) {
+    themeToggle.title = nextTheme === "dark" ? "Switch to light mode" : "Switch to dark mode";
+    themeToggle.setAttribute("aria-label", themeToggle.title);
+  }
+  if (themeColorMeta) themeColorMeta.content = nextTheme === "dark" ? "#17181c" : "#ffffff";
+}
+function initTheme() {
+  const saved = localStorage.getItem("assistant_theme");
+  const systemDark = window.matchMedia?.("(prefers-color-scheme: dark)").matches;
+  applyTheme(saved || (systemDark ? "dark" : "light"));
+}
+initTheme();
+themeToggle?.addEventListener("click", () => {
+  const next = document.body.dataset.theme === "dark" ? "light" : "dark";
+  localStorage.setItem("assistant_theme", next);
+  applyTheme(next);
+});
 
 function cacheKey(threadId) { return `${CACHE_PREFIX}${threadId}`; }
 function readCachedTurns(threadId) {
@@ -66,7 +91,7 @@ async function loadThreads() {
     const threads = await res.json();
     threadListEl.innerHTML = "";
     if (!threads.length) {
-      threadListEl.innerHTML = '<div class="thread-empty">এখনও কোনো চ্যাট নেই</div>';
+      threadListEl.innerHTML = '<div class="thread-empty">No conversations yet</div>';
       return;
     }
     threads.forEach((t) => {
@@ -74,10 +99,10 @@ async function loadThreads() {
       item.className = "thread-item" + (t.id === currentThreadId ? " active" : "");
       const title = document.createElement("span");
       title.className = "thread-title";
-      title.textContent = t.title || "নতুন কথোপকথন";
+      title.textContent = t.title || "New conversation";
       const del = document.createElement("span");
       del.className = "del";
-      del.title = "মুছুন";
+      del.title = "Delete";
       del.textContent = "×";
       item.append(title, del);
       title.addEventListener("click", () => selectThread(t.id));
@@ -186,7 +211,13 @@ function renderAssistantMessage(turn, shouldScroll = true) {
     stepsWrap.appendChild(stepEl);
     markStepDone(stepEl, step.output !== undefined && step.output !== null ? step.output : "");
   });
-  bubble.textContent = turn.text || "";
+  const activityPanel = row.querySelector(".activity-panel");
+  if (turn.steps?.length) {
+    activityPanel?.removeAttribute("hidden");
+    const status = activityPanel.querySelector(".activity-status");
+    if (status) status.textContent = "Complete";
+  } else activityPanel?.setAttribute("hidden", "");
+  setAssistantContent(bubble, turn.text || "");
   bubble.classList.remove("is-typing");
   row.querySelector(".typing-cursor")?.remove();
   if (!turn.text && !(turn.steps || []).length) row.remove();
@@ -197,10 +228,65 @@ function renderAssistantSkeleton() {
   emptyState.style.display = "none";
   const row = document.createElement("div");
   row.className = "msg-row assistant";
-  row.innerHTML = `<div class="bubble-wrap"><div class="assistant-label"><span class="assistant-mini-avatar">✦</span><span>Chief Personal Assistant</span></div><div class="steps"></div><div class="assistant-copy bubble is-typing"></div><span class="typing-cursor" aria-hidden="true"></span></div>`;
+  row.innerHTML = `<div class="bubble-wrap"><div class="assistant-label"><span class="assistant-mini-avatar">✦</span><span>Chief Personal Assistant</span></div><div class="activity-panel"><button class="activity-summary" type="button"><span class="activity-glyph">✦</span><span class="activity-label">Thinking</span><span class="activity-status">Working</span><span class="activity-chevron">⌄</span></button><div class="steps" hidden></div></div><div class="assistant-copy bubble is-typing"></div><span class="typing-cursor" aria-hidden="true"></span></div>`;
+  const activity = row.querySelector(".activity-panel");
+  activity.querySelector(".activity-summary").addEventListener("click", () => {
+    const isHidden = activity.querySelector(".steps").hasAttribute("hidden");
+    const steps = activity.querySelector(".steps");
+    if (isHidden) { steps.removeAttribute("hidden"); activity.classList.add("open"); }
+    else { steps.setAttribute("hidden", ""); activity.classList.remove("open"); }
+  });
   messagesEl.appendChild(row);
   scrollToBottom();
   return { row, stepsWrap: row.querySelector(".steps"), bubble: row.querySelector(".bubble") };
+}
+
+function inlineMarkdown(value) {
+  let html = escapeHtml(value);
+  html = html.replace(/`([^`\n]+)`/g, "<code>$1</code>");
+  html = html.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+  html = html.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+  html = html.replace(/__([^_]+)__/g, "<strong>$1</strong>");
+  html = html.replace(/\*([^*\n]+)\*/g, "<em>$1</em>");
+  return html;
+}
+function renderAssistantMarkdown(text) {
+  const source = String(text || "").replace(/\r\n/g, "\n");
+  if (!source.trim()) return "";
+  const blocks = source.split(/```/);
+  let html = "";
+  blocks.forEach((block, index) => {
+    if (index % 2 === 1) {
+      html += `<pre class="code-block"><code>${escapeHtml(block.replace(/^\w+\n/, ""))}</code></pre>`;
+      return;
+    }
+    const lines = block.split("\n");
+    let listType = null;
+    let listItems = [];
+    const flushList = () => {
+      if (!listItems.length) return;
+      html += `<${listType}>${listItems.map((item) => `<li>${inlineMarkdown(item)}</li>`).join("")}</${listType}>`;
+      listType = null; listItems = [];
+    };
+    let paragraph = [];
+    const flushParagraph = () => { if (paragraph.join(" ").trim()) html += `<p>${inlineMarkdown(paragraph.join(" "))}</p>`; paragraph = []; };
+    lines.forEach((line) => {
+      const trimmed = line.trim();
+      const heading = trimmed.match(/^(#{1,3})\s+(.+)$/);
+      const bullet = trimmed.match(/^[-*+]\s+(.+)$/);
+      const ordered = trimmed.match(/^\d+[.)]\s+(.+)$/);
+      if (heading) { flushList(); flushParagraph(); html += `<h${heading[1].length}>${inlineMarkdown(heading[2])}</h${heading[1].length}>`; }
+      else if (bullet || ordered) { flushParagraph(); const type = bullet ? "ul" : "ol"; if (listType && listType !== type) flushList(); listType = type; listItems.push((bullet || ordered)[1]); }
+      else if (/^>\s?/.test(trimmed)) { flushList(); flushParagraph(); html += `<blockquote>${inlineMarkdown(trimmed.replace(/^>\s?/, ""))}</blockquote>`; }
+      else if (!trimmed) { flushList(); flushParagraph(); }
+      else { flushList(); paragraph.push(trimmed); }
+    });
+    flushList(); flushParagraph();
+  });
+  return html;
+}
+function setAssistantContent(bubble, text) {
+  bubble.innerHTML = renderAssistantMarkdown(text);
 }
 
 function createStepEl(kind, agent, tool, input) {
@@ -210,12 +296,12 @@ function createStepEl(kind, agent, tool, input) {
   const detail = node.querySelector(".step-detail");
   if (kind === "agent") {
     icon.textContent = "✦";
-    label.textContent = `${AGENT_LABELS[agent] || agent || "সাব-এজেন্ট"}-কে কাজ দেওয়া হচ্ছে`;
+    label.textContent = `Delegating to ${AGENT_LABELS[agent] || agent || "specialist agent"}`;
   } else {
     icon.textContent = "⌁";
-    label.textContent = `${tool || "tool"} চালানো হচ্ছে` + (agent ? ` — ${AGENT_LABELS[agent] || agent}` : "");
+    label.textContent = `Running ${tool || "tool"}` + (agent ? ` — ${AGENT_LABELS[agent] || agent}` : "");
   }
-  if (input) detail.textContent = `▶ ইনপুট:\n${input}`;
+  if (input) detail.textContent = `Input:\n${input}`;
   node.querySelector(".step-head").addEventListener("click", () => {
     const isHidden = detail.hasAttribute("hidden");
     if (isHidden) { detail.removeAttribute("hidden"); node.classList.add("open"); }
@@ -225,10 +311,10 @@ function createStepEl(kind, agent, tool, input) {
 }
 function markStepDone(stepEl, output) {
   stepEl.classList.add("done");
-  stepEl.querySelector(".step-status").textContent = "সম্পন্ন";
+  stepEl.querySelector(".step-status").textContent = "Done";
   if (output) {
     const detail = stepEl.querySelector(".step-detail");
-    detail.textContent += `${detail.textContent ? "\n\n" : ""}▶ ফলাফল:\n${output}`;
+    detail.textContent += `${detail.textContent ? "\n\n" : ""}Output:\n${output}`;
   }
 }
 
@@ -247,7 +333,7 @@ fileInput.addEventListener("change", async () => {
     formData.append("file", file);
     const res = await fetch("/api/upload", { method: "POST", body: formData });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || "ফাইল আপলোড করা যায়নি");
+    if (!res.ok) throw new Error(data.error || "Unable to upload the file");
     pendingAttachment = data;
     attachmentName.textContent = data.filename;
     attachmentChip.hidden = false;
@@ -305,7 +391,7 @@ async function sendMessage() {
   const activeSteps = {};
   try {
     const res = await fetch("/api/chat", { method: "POST", body: formData });
-    if (!res.ok || !res.body) throw new Error("সার্ভার উত্তর দিতে পারেনি");
+    if (!res.ok || !res.body) throw new Error("The server could not respond");
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
     let buffer = "";
@@ -326,12 +412,14 @@ async function sendMessage() {
       try { handleEvent(JSON.parse(buffer), stepsWrap, bubble, activeSteps, assistantTurn); } catch { /* incomplete tail */ }
     }
   } catch (err) {
-    assistantTurn.text = `একটি সমস্যা হয়েছে: ${err.message}`;
-    bubble.textContent = assistantTurn.text;
+    assistantTurn.text = `Something went wrong: ${err.message}`;
+    setAssistantContent(bubble, assistantTurn.text);
     bubble.classList.remove("is-typing");
   } finally {
     row.querySelector(".typing-cursor")?.remove();
     bubble.classList.remove("is-typing");
+    const activityStatus = row.querySelector(".activity-status");
+    if (activityStatus) activityStatus.textContent = "Complete";
     isStreaming = false;
     sendBtn.disabled = false;
     saveCachedTurns(activeTranscript);
@@ -364,11 +452,18 @@ function handleEvent(evt, stepsWrap, bubble, activeSteps, assistantTurn) {
       stepsWrap.appendChild(stepEl);
       activeSteps[key] = stepEl;
       assistantTurn.steps.push({ type: "agent_start", agent: evt.agent, output: "" });
+      const activityPanel = stepsWrap.closest(".activity-panel");
+      activityPanel?.removeAttribute("hidden");
+      stepsWrap.removeAttribute("hidden");
+      activityPanel?.classList.add("open");
       markStepDone(stepEl, "");
     }
   } else if (evt.type === "tool_start") {
     const key = "tool:" + evt.tool + ":" + (evt.input || "");
     const stepEl = createStepEl("tool", evt.agent, evt.tool, evt.input);
+    stepsWrap.closest(".activity-panel")?.removeAttribute("hidden");
+    stepsWrap.removeAttribute("hidden");
+    stepsWrap.closest(".activity-panel")?.classList.add("open");
     stepsWrap.appendChild(stepEl);
     activeSteps[key] = stepEl;
     assistantTurn.steps.push({ type: "tool", agent: evt.agent, tool: evt.tool, input: evt.input || "", output: null });
@@ -381,14 +476,14 @@ function handleEvent(evt, stepsWrap, bubble, activeSteps, assistantTurn) {
       if (assistantTurn.steps[i].tool === evt.tool && assistantTurn.steps[i].output == null) { assistantTurn.steps[i].output = evt.output || ""; break; }
     }
   } else if (evt.type === "token") {
-    bubble.textContent += evt.text;
-    assistantTurn.text = bubble.textContent;
+    assistantTurn.text += evt.text;
+    setAssistantContent(bubble, assistantTurn.text);
   } else if (evt.type === "final_answer") {
-    bubble.textContent = evt.text || "";
     assistantTurn.text = evt.text || "";
+    setAssistantContent(bubble, assistantTurn.text);
   } else if (evt.type === "error") {
-    assistantTurn.text += `${assistantTurn.text ? "\n" : ""}⚠️ ${evt.message}`;
-    bubble.textContent = assistantTurn.text;
+    assistantTurn.text += `${assistantTurn.text ? "\n" : ""}Warning: ${evt.message}`;
+    setAssistantContent(bubble, assistantTurn.text);
   } else if (evt.type === "done") {
     stepsWrap.querySelectorAll(".step:not(.done)").forEach((step) => markStepDone(step, ""));
   }
