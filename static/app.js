@@ -207,6 +207,10 @@ function renderUserMessage(text, shouldScroll = true) {
 function renderAssistantMessage(turn, shouldScroll = true) {
   const { row, stepsWrap, bubble } = renderAssistantSkeleton();
   (turn.steps || []).forEach((step) => {
+    if (step.type === "report") {
+      renderReportStep(stepsWrap, step.agent, step.output || "");
+      return;
+    }
     const stepEl = createStepEl(step.type === "agent_start" ? "agent" : "tool", step.agent, step.tool, step.input);
     stepsWrap.appendChild(stepEl);
     markStepDone(stepEl, step.output !== undefined && step.output !== null ? step.output : "");
@@ -297,6 +301,9 @@ function createStepEl(kind, agent, tool, input) {
   if (kind === "agent") {
     icon.textContent = "✦";
     label.textContent = `Delegating to ${AGENT_LABELS[agent] || agent || "specialist agent"}`;
+  } else if (kind === "report") {
+    icon.textContent = "▤";
+    label.textContent = `${AGENT_LABELS[agent] || agent || "Specialist agent"} reported back`;
   } else {
     icon.textContent = "⌁";
     label.textContent = `Running ${tool || "tool"}` + (agent ? ` — ${AGENT_LABELS[agent] || agent}` : "");
@@ -316,6 +323,18 @@ function markStepDone(stepEl, output) {
     const detail = stepEl.querySelector(".step-detail");
     detail.textContent += `${detail.textContent ? "\n\n" : ""}Output:\n${output}`;
   }
+}
+function renderReportStep(stepsWrap, agent, text) {
+  const stepEl = createStepEl("report", agent, null, null);
+  stepsWrap.appendChild(stepEl);
+  const detail = stepEl.querySelector(".step-detail");
+  detail.textContent = text || "";
+  // Auto-expanded: this is the sub-agent's actual answer, not just
+  // telemetry, so it shouldn't be hidden behind an extra click.
+  detail.removeAttribute("hidden");
+  stepEl.classList.add("done", "open");
+  stepEl.querySelector(".step-status").textContent = "Done";
+  return stepEl;
 }
 
 suggestionCards.forEach((card) => card.addEventListener("click", () => {
@@ -475,6 +494,13 @@ function handleEvent(evt, stepsWrap, bubble, activeSteps, assistantTurn) {
     for (let i = assistantTurn.steps.length - 1; i >= 0; i--) {
       if (assistantTurn.steps[i].tool === evt.tool && assistantTurn.steps[i].output == null) { assistantTurn.steps[i].output = evt.output || ""; break; }
     }
+  } else if (evt.type === "sub_agent_report") {
+    renderReportStep(stepsWrap, evt.agent, evt.text || "");
+    assistantTurn.steps.push({ type: "report", agent: evt.agent, output: evt.text || "" });
+    const activityPanel = stepsWrap.closest(".activity-panel");
+    activityPanel?.removeAttribute("hidden");
+    stepsWrap.removeAttribute("hidden");
+    activityPanel?.classList.add("open");
   } else if (evt.type === "token") {
     assistantTurn.text += evt.text;
     setAssistantContent(bubble, assistantTurn.text);
