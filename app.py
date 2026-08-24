@@ -206,6 +206,35 @@ def _stringify(value) -> str:
         return str(value)[:4000]
 
 
+def _extract_text(content) -> str:
+    """
+    Normalizes a LangChain message's .content down to just the
+    human-readable answer text.
+
+    Some models (Gemini/Gemma included) return .content as a LIST mixing
+    plain strings with structured blocks like {"type": "text", "text": ...}
+    and {"type": "thinking", "thinking": ...}. Blindly JSON-dumping that
+    list (what _stringify does) leaked the model's internal "thinking"
+    trace straight into the chat bubble as raw JSON. This picks out only
+    the actual answer text and drops reasoning/other non-text blocks.
+    """
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        parts = []
+        for item in content:
+            if isinstance(item, str):
+                parts.append(item)
+            elif isinstance(item, dict):
+                block_type = item.get("type")
+                if block_type in ("thinking", "reasoning", "redacted_thinking"):
+                    continue
+                if block_type == "text" or "text" in item:
+                    parts.append(item.get("text", ""))
+        return "".join(parts)
+    return _stringify(content)
+
+
 def _agent_from_tool_name(tool_name: str) -> str | None:
     if tool_name and tool_name.startswith("transfer_to_"):
         candidate = tool_name[len("transfer_to_"):]
@@ -216,24 +245,37 @@ def _agent_from_tool_name(tool_name: str) -> str | None:
 
 def _extract_final_answer(messages) -> str:
     """
-    Reliably pulls the assistant's final answer text straight out of the
-    graph's saved state, by walking backward from the end until either the
-    most recent HumanMessage or a qualifying AIMessage (one with no pending
-    tool calls) is found. This is the same, already-proven-correct source
-    /api/history uses — used here as the guaranteed fallback for live
-    chat, since matching the right event during token-by-token streaming
-    turned out to be fragile across LangGraph/provider versions.
+    Reliably pulls the SUPERVISOR's own final answer text straight out of
+    the graph's saved state, by walking backward from the end until either
+    the most recent HumanMessage or a qualifying AIMessage (one with no
+    pending tool calls) is found.
+
+    Messages authored by a sub-agent (identified via `.name`, which
+    langgraph_supervisor sets in output_mode="full_history") are skipped
+    here on purpose — those are surfaced separately as "report" steps (see
+    _messages_to_turns) instead of silently overwriting the supervisor's
+    own wrap-up. If the supervisor never produces its own wrap-up message,
+    the most recent sub-agent answer is used as a fallback so the user
+    still sees something instead of nothing.
     """
+    fallback = ""
     for msg in reversed(messages):
         if isinstance(msg, HumanMessage):
             break
         if isinstance(msg, AIMessage):
             tool_calls = getattr(msg, "tool_calls", None) or []
-            if not tool_calls and msg.content:
-                content = msg.content if isinstance(msg.content, str) else _stringify(msg.content)
-                if content.strip():
-                    return content
-    return ""
+            if tool_calls or not msg.content:
+                continue
+            content = _extract_text(msg.content)
+            if not content.strip():
+                continue
+            author = getattr(msg, "name", None)
+            if author and author in SUB_AGENT_NAMES:
+                if not fallback:
+                    fallback = content
+                continue
+            return content
+    return fallback
 
 
 def _messages_to_turns(messages):
@@ -252,7 +294,7 @@ def _messages_to_turns(messages):
 
     for msg in messages:
         if isinstance(msg, HumanMessage):
-            turns.append({"role": "user", "text": msg.content if isinstance(msg.content, str) else _stringify(msg.content)})
+            turns.append({"role": "user", "text": _extract_text(msg.content)})
             current = _new_assistant_turn()
             turns.append(current)
 
@@ -278,9 +320,22 @@ def _messages_to_turns(messages):
                     current["steps"].append(step)
                     pending_tool_calls[tc.get("id")] = step
             elif msg.content:
-                text = msg.content if isinstance(msg.content, str) else _stringify(msg.content)
+                text = _extract_text(msg.content)
                 if text.strip():
-                    current["text"] = text
+                    author = getattr(msg, "name", None)
+                    if author and author in SUB_AGENT_NAMES:
+                        # This is a sub-agent's own final answer, not the
+                        # supervisor's. Surface it as its own visible
+                        # "report" step instead of silently overwriting
+                        # current["text"] — otherwise the sub-agent's work
+                        # was invisible unless the user asked again.
+                        current["steps"].append({
+                            "type": "report",
+                            "agent": author,
+                            "output": text,
+                        })
+                    else:
+                        current["text"] = text
 
         elif isinstance(msg, ToolMessage):
             step = pending_tool_calls.get(msg.tool_call_id)
@@ -439,6 +494,16 @@ async def chat(
                 latest_assistant = next((t for t in reversed(graph_turns) if t.get("role") == "assistant"), None)
                 if latest_assistant:
                     final_turn = latest_assistant
+                    # Surface each sub-agent's own final answer as a visible
+                    # "report" step — without this, delegated work only
+                    # showed up if the user asked again in a follow-up turn.
+                    for step in final_turn.get("steps", []):
+                        if step.get("type") == "report":
+                            yield _sse({
+                                "type": "sub_agent_report",
+                                "agent": step.get("agent"),
+                                "text": step.get("output", ""),
+                            })
                 final_text = _extract_final_answer(state_messages) or final_turn.get("text") or streamed_text
                 final_turn["text"] = final_text
                 if final_text:
