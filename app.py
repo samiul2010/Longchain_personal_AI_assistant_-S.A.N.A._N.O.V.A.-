@@ -421,21 +421,48 @@ async def chat(
 
     async def event_stream():
         streamed_text = ""
-        iterator = graph.astream_events(inputs, config=config, version="v2").__aiter__()
+        queue: asyncio.Queue = asyncio.Queue()
+        _DONE = object()
+
+        async def producer():
+            # Runs the real graph execution completely independently of the
+            # heartbeat loop below. This matters: asyncio.wait_for(coro,
+            # timeout) CANCELS `coro` the instant it times out. The old code
+            # called asyncio.wait_for() directly on the astream_events
+            # iterator's __anext__() — so every time a slow step (a GitHub
+            # tool call, a rate-limit retry, etc.) took longer than the 15s
+            # heartbeat window, the timeout didn't just skip a beat, it
+            # CANCELLED the in-flight graph run outright, killing it silently
+            # partway through with no error and no final answer. Running the
+            # real work here, in its own task, decouples "how long the graph
+            # takes" from "how often we need to send a keep-alive byte".
+            try:
+                async for event in graph.astream_events(inputs, config=config, version="v2"):
+                    await queue.put(("event", event))
+            except Exception as exc:  # noqa: BLE001
+                await queue.put(("error", exc))
+            finally:
+                await queue.put(("stop", None))
+
+        producer_task = asyncio.create_task(producer())
+
         try:
             while True:
                 try:
-                    # Heartbeat every 15s of silence so reverse proxies
-                    # (HF Spaces included) don't treat an idle-but-alive
-                    # connection as dead and kill it mid-request — that
-                    # showed up client-side as a generic "Failed to fetch".
-                    event = await asyncio.wait_for(iterator.__anext__(), timeout=15)
+                    # Only queue.get() is subject to the timeout here — a
+                    # timeout just means "nothing to report yet", and does
+                    # NOT touch producer_task, which keeps running untouched.
+                    kind, payload = await asyncio.wait_for(queue.get(), timeout=15)
                 except asyncio.TimeoutError:
                     yield _sse({"type": "heartbeat"})
                     continue
-                except StopAsyncIteration:
-                    break
 
+                if kind == "stop":
+                    break
+                if kind == "error":
+                    raise payload
+
+                event = payload
                 kind = event.get("event")
                 metadata = event.get("metadata") or {}
                 node = metadata.get("langgraph_node")
@@ -517,6 +544,11 @@ async def chat(
             error_text = f"একটি সমস্যা হয়েছে: {exc}"
             _replace_last_assistant_turn(thread_id, {"role": "assistant", "steps": [], "text": error_text})
             yield _sse({"type": "error", "message": str(exc)})
+        finally:
+            # Guard against leaking the background task if the client
+            # disconnects, an error is raised early, etc.
+            if not producer_task.done():
+                producer_task.cancel()
 
     return StreamingResponse(
         event_stream(),
