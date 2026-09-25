@@ -1,5 +1,5 @@
 ---
-title: agent_to_bot_connect
+title: langgraph_agent_with_my_cod
 emoji: ♻️
 colorFrom: pink
 colorTo: gray
@@ -9,4 +9,4 @@ app_port: 7860
 ---
 
 # agent to bot 
-# bot to agent 
+# bot to agent
