@@ -1,29 +1,35 @@
 # ---------------------------------------------------------------------------
-# IMPORT_ALL_SUB_AGENT_BUILDERS
+#IMPORT_ALL_SUB_AGENTS
 # ---------------------------------------------------------------------------
-from sub_agents.git_hub_agent.git_hub import build_git_hub_agent, AGENT_NAME as GITHUB_NAME
-from sub_agents.git_lab_agent.git_lab import build_git_lab_agent, AGENT_NAME as GITLAB_NAME
-from sub_agents.facebook_agent.facebook import build_facebook_agent, AGENT_NAME as FACEBOOK_NAME
-from sub_agents.youtube_agent.youtube import build_youtube_agent, AGENT_NAME as YOUTUBE_NAME
+from sub_agents.coding.github_agent.github import _git_hub_agent, AGENT_NAME as GITHUB_NAME
+from sub_agents.coding.gitlab_agent.gitlab import _git_lab_agent, AGENT_NAME as GITLAB_NAME
+from sub_agents.social_media.facebook_agent.facebook import _facebook_agent, AGENT_NAME as FACEBOOK_NAME
+from sub_agents.social_media.youtube_agent.youtube import _youtube_agent, AGENT_NAME as YOUTUBE_NAME
 
-SUB_AGENT_NAMES = [GITHUB_NAME, GITLAB_NAME, FACEBOOK_NAME, YOUTUBE_NAME]
+# ---------------------------------------------------------------------------
+#CREATE_OBJECT_ALL_SUB_AGENTS
+# ---------------------------------------------------------------------------
+_git_hub=_git_hub_agent()
+_git_lab=_git_lab_agent()
+_facebook=_facebook_agent()
+_youtube=_youtube_agent()
 
 
-async def build_all_sub_agents():
-    """
-    Builds every sub agent (each with its own compiled LangGraph react-agent
-    and its own persistent sqlite memory under /agent/<agent_name>/).
+# ---------------------------------------------------------------------------
+#ALL_SUB_AGENTS_LIST
+# ---------------------------------------------------------------------------
+ALL_SUB_AGENTS=[
+    _git_hub,
+    _git_lab,
+    _facebook,
+    _youtube,
+]
 
-    Returns:
-        agents: list[CompiledStateGraph]  -> handed to the supervisor
-        checkpointer_cms: list            -> async context managers to close on shutdown
-    """
-    git_hub_agent, gh_cm = await build_git_hub_agent()
-    git_lab_agent, gl_cm = await build_git_lab_agent()
-    facebook_agent, fb_cm = await build_facebook_agent()
-    youtube_agent, yt_cm = await build_youtube_agent()
-
-    agents = [git_hub_agent, git_lab_agent, facebook_agent, youtube_agent]
-    checkpointer_cms = [gh_cm, gl_cm, fb_cm, yt_cm]
-
-    return agents, checkpointer_cms
+# Agent names, in the same order, used by app.py to label the Manus-style
+# action timeline (agent handoffs / tool calls) in the UI.
+SUB_AGENT_NAMES = [
+    GITHUB_NAME,
+    GITLAB_NAME,
+    FACEBOOK_NAME,
+    YOUTUBE_NAME,
+]
