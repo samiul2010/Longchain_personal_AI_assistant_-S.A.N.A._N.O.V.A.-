@@ -31,7 +31,7 @@
     <main class="main">
       <header class="topbar">
         <button id="menuBtn" class="icon-btn menu-btn" title="Menu" aria-label="Menu">☰</button>
-        <div class="topbar-identity"><div class="agent-avatar"><span></span></div><div class="topbar-text"><div class="topbar-title">Chief Personal Assistant</div><div class="topbar-sub"><span class="online-dot"></span> main_agent · supervisor</div></div></div>
+        <div class="topbar-identity"><div class="agent-avatar"><span></span></div><div class="topbar-text"><div class="topbar-title">Chief Personal Assistant</div><div class="topbar-sub"><span class="online-dot"></span> Ready to help</div></div></div>
         <div class="topbar-actions">
           <button class="icon-btn" id="themeToggle" title="Toggle dark mode" aria-label="Toggle dark mode"><span class="theme-icon">☾</span></button>
           <button class="icon-btn" id="clearChatBtn" title="New chat" aria-label="New chat">✎</button>
@@ -41,13 +41,14 @@
 
       <div class="chat-scroll" id="chatScroll">
         <div class="welcome" id="emptyState">
-          <div class="welcome-orb"><span></span></div><div class="eyebrow">Your personal agent</div><h1>How can I help you today?</h1>
-          <p>Ask a question, start a task, or share an idea. Your agent can route work to the right specialist when needed.</p>
+          <div class="welcome-orb"><span></span></div>
+          <h1>What are we getting done today?</h1>
+          <p>Ask a question, hand off a task, or drop in a file. I'll bring in a specialist agent myself when the work calls for one.</p>
           <div class="suggestion-grid" aria-label="Quick start options">
-            <button class="suggestion-card" data-prompt="Create a practical plan for my day"><span class="suggestion-icon">✦</span><span>Create a plan for my day</span><span class="suggestion-arrow">↗</span></button>
-            <button class="suggestion-card" data-prompt="Review my latest GitHub work and give me a short report"><span class="suggestion-icon">⌘</span><span>Review my GitHub work</span><span class="suggestion-arrow">↗</span></button>
-            <button class="suggestion-card" data-prompt="Organize the most important tasks for this week"><span class="suggestion-icon">☷</span><span>Organize my priorities</span><span class="suggestion-arrow">↗</span></button>
-            <button class="suggestion-card" data-prompt="Write a polished email for me"><span class="suggestion-icon">✉</span><span>Write an email</span><span class="suggestion-arrow">↗</span></button>
+            <button class="suggestion-card" data-prompt="Create a practical plan for my day"><span class="suggestion-icon">✦</span><span>Create a plan for my day</span></button>
+            <button class="suggestion-card" data-prompt="Review my latest GitHub work and give me a short report"><span class="suggestion-icon">⌘</span><span>Review my GitHub work</span></button>
+            <button class="suggestion-card" data-prompt="Organize the most important tasks for this week"><span class="suggestion-icon">☷</span><span>Organize my priorities</span></button>
+            <button class="suggestion-card" data-prompt="Write a polished email for me"><span class="suggestion-icon">✉</span><span>Write an email</span></button>
           </div>
         </div>
         <div class="messages" id="messages" aria-live="polite"></div>
@@ -64,7 +65,7 @@
     </main>
   </div>
 
-  <template id="stepTemplate"><div class="step"><div class="step-head"><span class="step-icon"></span><span class="step-label"></span><span class="step-status">Running</span><span class="step-chevron">⌄</span></div><pre class="step-detail" hidden></pre></div></template>
+  <template id="stepTemplate"><div class="step"><span class="step-dot" aria-hidden="true"></span><div class="step-head"><span class="step-icon"></span><span class="step-label"></span><span class="step-status">Running</span><span class="step-chevron">⌄</span></div><pre class="step-detail" hidden></pre></div></template>
   <script src="/static/app.js"></script>
 </body>
 </html>
