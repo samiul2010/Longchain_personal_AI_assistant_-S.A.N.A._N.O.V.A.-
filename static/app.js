@@ -232,7 +232,7 @@ function renderAssistantSkeleton() {
   emptyState.style.display = "none";
   const row = document.createElement("div");
   row.className = "msg-row assistant";
-  row.innerHTML = `<div class="bubble-wrap"><div class="assistant-label"><span class="assistant-mini-avatar">✦</span><span>Chief Personal Assistant</span></div><div class="activity-panel"><button class="activity-summary" type="button"><span class="activity-glyph">✦</span><span class="activity-label">Thinking</span><span class="activity-status">Working</span><span class="activity-chevron">⌄</span></button><div class="steps" hidden></div></div><div class="assistant-copy bubble is-typing"></div><span class="typing-cursor" aria-hidden="true"></span></div>`;
+  row.innerHTML = `<div class="bubble-wrap"><div class="assistant-label"><span class="assistant-mini-avatar">✦</span><span>Manus Agent</span></div><div class="activity-panel"><button class="activity-summary" type="button"><span class="activity-glyph">✦</span><span class="activity-label">Thinking</span><span class="activity-status">Working</span><span class="activity-chevron">⌄</span></button><div class="steps" hidden></div></div><div class="assistant-copy bubble is-typing"></div><span class="typing-cursor" aria-hidden="true"></span></div>`;
   const activity = row.querySelector(".activity-panel");
   activity.querySelector(".activity-summary").addEventListener("click", () => {
     const isHidden = activity.querySelector(".steps").hasAttribute("hidden");
