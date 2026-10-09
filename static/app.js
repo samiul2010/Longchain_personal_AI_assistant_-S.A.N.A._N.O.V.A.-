@@ -42,7 +42,7 @@ function applyTheme(theme) {
     themeToggle.title = nextTheme === "dark" ? "Switch to light mode" : "Switch to dark mode";
     themeToggle.setAttribute("aria-label", themeToggle.title);
   }
-  if (themeColorMeta) themeColorMeta.content = nextTheme === "dark" ? "#17181c" : "#ffffff";
+  if (themeColorMeta) themeColorMeta.content = nextTheme === "dark" ? "#121316" : "#fafaf8";
 }
 function initTheme() {
   const saved = localStorage.getItem("assistant_theme");
