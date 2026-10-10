@@ -97,7 +97,7 @@ RUN chown -R user:user $HOME/app
 
 # ── Switch to non-root user ───────────────────────────────────────────────────
 
-USER user
+#USER user
 
 # ── Expose web UI port (HF Spaces default) ─────────────────────────────────────
 EXPOSE 7860
