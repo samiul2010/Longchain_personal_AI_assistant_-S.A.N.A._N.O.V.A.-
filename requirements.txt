@@ -31,3 +31,4 @@ aiosqlite
 #mcp_tools
 # ---------------------------------------------------------------------------
 just_facebook_mcp
+huggingface_hub
