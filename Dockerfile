@@ -10,7 +10,25 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     npm \
     golang-go \
     && rm -rf /var/lib/apt/lists/*
-
+   
+#-------------------agent_PC------------------------------
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    xvfb \
+    xfce4 \
+    dbus-x11 \
+    at-spi2-core \
+    python3-pyatspi \
+    gir1.2-atspi-2.0 \
+    python3-gi \
+    firefox-esr \
+    && rm -rf /var/lib/apt/lists/*
+#------------PC_permission-------------  
+ENV NO_AT_BRIDGE=0
+ENV GTK_MODULES=gail:atk-bridge
+ENV ACCESSIBILITY_ENABLED=1
+ENV MOZ_ACCESSIBILITY_HANDLER=1
+ENV DISPLAY=:99 
+   
 #-------git_hub_mcp_server_install---------------
 RUN git clone --depth 1 https://github.com/github/github-mcp-server.git /tmp/github-mcp-server \
     && cd /tmp/github-mcp-server \
@@ -44,8 +62,11 @@ RUN pip install --no-cache-dir --upgrade pip \
 
 # ── Copy application code ─────────────────────────────────────────────────────
 COPY --chown=user . .
-
+#--------coppy_pc-----------------------
+COPY --chown=user entrypoint.sh /home/user/entrypoint.sh
+RUN chmod +x /home/user/entrypoint.sh
 # ── Switch to non-root user ───────────────────────────────────────────────────
+
 USER user
 
 # ── Expose web UI port (HF Spaces default) ─────────────────────────────────────
@@ -56,4 +77,6 @@ HEALTHCHECK --interval=60s --timeout=10s --start-period=30s \
     CMD curl -f http://localhost:7860/ || exit 1
 
 # ── Launch app (FastAPI + Manus-style UI) ───────────────────────────────────────
+#CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "7860"]
+ENTRYPOINT ["/home/user/entrypoint.sh"]
 CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "7860"]
