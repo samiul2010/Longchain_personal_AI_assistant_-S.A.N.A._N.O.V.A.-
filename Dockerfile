@@ -67,7 +67,9 @@ RUN npm install -g \
   maagpi-youtube-mcp
 
 # ── Non-root user (required by Hugging Face Spaces) ──────────────────────────
-RUN useradd -m -u 1000 user
+RUN userdel -r ubuntu 2>/dev/null || true \
+    && groupdel ubuntu 2>/dev/null || true \
+    && useradd -m -u 1000 user
 ENV HOME=/home/user \
     PATH=/home/user/.local/bin:$PATH
 # ── Persistent memory directory shared by every agent ─────────────────────────
