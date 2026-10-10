@@ -23,6 +23,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
    
 #-------------------agent_PC------------------------------
+# ⚠️ PPA যোগ করুন প্রথমে — firefox-esr এর জন্যে
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    software-properties-common \
+    && add-apt-repository -y ppa:mozillateam/ppa \
+    && apt-get update \
+    && rm -rf /var/lib/apt/lists/*
 RUN apt-get update && apt-get install -y --no-install-recommends \
     xvfb \
     xfce4 \
