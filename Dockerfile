@@ -78,6 +78,9 @@ ENV HOME=/home/user \
 # where no volume is mounted — once HF's storage bucket is mounted at /agent,
 # its own permissions apply and this app writes only inside it.
 RUN mkdir -p /agent && chown -R user:user /agent
+# ── Working directory ─────────────────────────────────────────────────────────
+WORKDIR $HOME/app
+RUN chown -R user:user $HOME/app
 
 # ── Python: single interpreter, symlink for 'python' ──
 # ── Python venv (PEP 668 compliant, system packages inherit) ──
@@ -94,14 +97,11 @@ ENV PATH="/home/user/venv/bin:$PATH"
 # ── Install Python dependencies ──
 COPY --chown=user requirements.txt .
 RUN /home/user/venv/bin/pip install --no-cache-dir -r requirements.txt
-# ── Copy application code ─────────────────────────────────────────────────────
-COPY --chown=user . .
 #--------coppy_pc-----------------------
 COPY --chown=user entrypoint.sh /home/user/entrypoint.sh
 RUN chmod +x /home/user/entrypoint.sh
-# ── Working directory ─────────────────────────────────────────────────────────
-WORKDIR $HOME/app
-RUN chown -R user:user $HOME/app
+# ── Copy application code ────────────────────────────────────────────────────
+COPY --chown=user . .
 
 # ── Switch to non-root user ───────────────────────────────────────────────────
 
