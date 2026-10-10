@@ -18,6 +18,7 @@ aiosqlite
 langchain-openai
 langchain-google-genai
 langchain-anthropic
+langchain-groq
 
 # ---------------------------------------------------------------------------
 # Web server / UI
