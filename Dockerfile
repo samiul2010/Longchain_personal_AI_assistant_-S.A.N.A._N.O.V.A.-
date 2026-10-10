@@ -21,6 +21,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     gir1.2-atspi-2.0 \
     python3-gi \
     firefox-esr \
+    x11-utils \
     && rm -rf /var/lib/apt/lists/*
 #------------PC_permission-------------  
 ENV NO_AT_BRIDGE=0
@@ -28,10 +29,6 @@ ENV GTK_MODULES=gail:atk-bridge
 ENV ACCESSIBILITY_ENABLED=1
 ENV MOZ_ACCESSIBILITY_HANDLER=1
 ENV DISPLAY=:99 
-#--------coppy_pc-----------------------
-COPY --chown=user entrypoint.sh /home/user/entrypoint.sh
-RUN chmod +x /home/user/entrypoint.sh
-   
 #-------git_hub_mcp_server_install---------------
 RUN git clone --depth 1 https://github.com/github/github-mcp-server.git /tmp/github-mcp-server \
     && cd /tmp/github-mcp-server \
@@ -65,7 +62,10 @@ RUN pip install --no-cache-dir --upgrade pip \
 
 # ── Copy application code ─────────────────────────────────────────────────────
 COPY --chown=user . .
-
+#--------coppy_pc-----------------------
+COPY --chown=user entrypoint.sh /home/user/entrypoint.sh
+RUN chmod +x /home/user/entrypoint.sh
+   
 # ── Switch to non-root user ───────────────────────────────────────────────────
 
 USER user
