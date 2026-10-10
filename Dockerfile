@@ -1,5 +1,10 @@
 # ── Base image ────────────────────────────────────────────────────────────────
-FROM python:3.11-slim
+FROM ubuntu:24.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV DISPLAY=:99
+ENV HOME=/home/user
+ENV PYTHONUNBUFFERED=1
 
 # ── System dependencies ───────────────────────────────────────────────────────
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -9,8 +14,47 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     nodejs \
     npm \
     golang-go \
+    python3 \
+    python3-pip \
+    python3-dev \
+    python3-venv \
+    ca-certificates \
+    rsync \
     && rm -rf /var/lib/apt/lists/*
-
+   
+#-------------------agent_PC------------------------------
+# ⚠️ PPA যোগ করুন প্রথমে — firefox-esr এর জন্যে
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    software-properties-common \
+    && add-apt-repository -y ppa:mozillateam/ppa \
+    && apt-get update \
+    && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    xvfb \
+    xfce4 \
+    xfce4-terminal \
+    thunar \
+    dbus-x11 \
+    at-spi2-core \
+    python3-pyatspi \
+    gir1.2-atspi-2.0 \
+    python3-gi \
+    firefox-esr \
+    x11-utils \
+    x11-xserver-utils \
+    xdotool \
+    libreoffice-writer \
+    libreoffice-calc \
+    fonts-liberation \
+    fonts-dejavu \
+    && rm -rf /var/lib/apt/lists/*
+#------------PC_permission-------------  
+ENV NO_AT_BRIDGE=0
+ENV GTK_MODULES=gail:atk-bridge
+ENV ACCESSIBILITY_ENABLED=1
+ENV MOZ_ACCESSIBILITY_HANDLER=1
+ENV QT_ACCESSIBILITY=1
+ENV DISPLAY=:99
 #-------git_hub_mcp_server_install---------------
 RUN git clone --depth 1 https://github.com/github/github-mcp-server.git /tmp/github-mcp-server \
     && cd /tmp/github-mcp-server \
@@ -22,31 +66,46 @@ RUN npm install -g \
   @zereight/mcp-gitlab \
   maagpi-youtube-mcp
 
+# ── Non-root user (required by Hugging Face Spaces) ──────────────────────────
+RUN userdel -r ubuntu 2>/dev/null || true \
+    && groupdel ubuntu 2>/dev/null || true \
+    && useradd -m -u 1000 user
+ENV HOME=/home/user \
+    PATH=/home/user/.local/bin:$PATH
 # ── Persistent memory directory shared by every agent ─────────────────────────
 # NOTE: on Hugging Face Spaces, attach your Persistent Storage volume at this
 # exact path (/agent). This mkdir/chmod is only a fallback for local/dev runs
 # where no volume is mounted — once HF's storage bucket is mounted at /agent,
 # its own permissions apply and this app writes only inside it.
-RUN mkdir -p /agent && chmod -R 777 /agent
-
-# ── Non-root user (required by Hugging Face Spaces) ──────────────────────────
-RUN useradd -m -u 1000 user
-ENV HOME=/home/user \
-    PATH=/home/user/.local/bin:$PATH
-
+RUN mkdir -p /agent && chown -R user:user /agent
 # ── Working directory ─────────────────────────────────────────────────────────
 WORKDIR $HOME/app
+RUN chown -R user:user $HOME/app
 
-# ── Install Python dependencies BEFORE copying code (layer cache) ─────────────
+# ── Python: single interpreter, symlink for 'python' ──
+# ── Python venv (PEP 668 compliant, system packages inherit) ──
+# --system-site-packages দেওয়ায় venv /usr/lib/python3/dist-packages দেখতে পাবে
+# ফলে apt থেকে ইনস্টল হওয়া python3-gi, python3-pyatspi — সব import হবে
+RUN python3 -m venv --system-site-packages /home/user/venv \
+    && /home/user/venv/bin/pip install --no-cache-dir --upgrade pip \
+    && chown -R user:user /home/user/venv
+
+# venv কে PATH-এ প্রথমে রাখো
+ENV VIRTUAL_ENV="/home/user/venv"
+ENV PATH="/home/user/venv/bin:$PATH"
+
+# ── Install Python dependencies ──
 COPY --chown=user requirements.txt .
-RUN pip install --no-cache-dir --upgrade pip \
-    && pip install --no-cache-dir -r requirements.txt
-
-# ── Copy application code ─────────────────────────────────────────────────────
+RUN /home/user/venv/bin/pip install --no-cache-dir -r requirements.txt
+#--------coppy_pc-----------------------
+COPY --chown=user entrypoint.sh /home/user/entrypoint.sh
+RUN chmod +x /home/user/entrypoint.sh
+# ── Copy application code ────────────────────────────────────────────────────
 COPY --chown=user . .
 
 # ── Switch to non-root user ───────────────────────────────────────────────────
-USER user
+
+#USER user
 
 # ── Expose web UI port (HF Spaces default) ─────────────────────────────────────
 EXPOSE 7860
@@ -56,4 +115,6 @@ HEALTHCHECK --interval=60s --timeout=10s --start-period=30s \
     CMD curl -f http://localhost:7860/ || exit 1
 
 # ── Launch app (FastAPI + Manus-style UI) ───────────────────────────────────────
+#CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "7860"]
+ENTRYPOINT ["/home/user/entrypoint.sh"]
 CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "7860"]

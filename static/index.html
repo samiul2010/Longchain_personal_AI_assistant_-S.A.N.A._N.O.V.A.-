@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="theme-color" content="#ffffff" id="themeColorMeta" />
-  <title>Chief Personal Assistant</title>
+  <title>Manus Agent Workspace</title>
   <link rel="stylesheet" href="/static/style.css" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -13,42 +13,47 @@
 <body>
   <div class="app" id="app">
     <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
-    <aside class="sidebar" id="sidebar" aria-label="Conversation navigation">
+    <aside class="sidebar" id="sidebar" aria-label="Task navigation">
       <div class="sidebar-header">
-        <div class="brand-mark" aria-hidden="true"><span></span></div>
-        <span class="brand-name">SAMIUL AI</span>
+        <div class="manus-mark" aria-hidden="true"><span></span></div>
+        <span class="brand-name">SANA NOVA cheap assistant</span>
+        <span class="brand-pill">AGENT</span>
         <button id="closeSidebarBtn" class="icon-btn close-sidebar-btn" title="Close sidebar" aria-label="Close sidebar">×</button>
       </div>
-      <button id="newChatBtn" class="new-chat-btn"><span class="new-chat-plus" aria-hidden="true">＋</span><span>New chat</span><span class="shortcut">⌘ K</span></button>
-      <div class="sidebar-section-label">Recent</div>
+      <button id="newChatBtn" class="new-chat-btn"><span class="new-chat-plus">＋</span><span>New task</span><span class="shortcut">⌘ K</span></button>
+      <nav class="sidebar-nav" aria-label="Workspace navigation">
+        <button class="nav-item active" type="button"><span class="nav-icon">⌂</span> Workspace</button>
+        <button class="nav-item" type="button"><span class="nav-icon">▱</span> Library</button>
+      </nav>
+      <div class="sidebar-section-label">Recent tasks</div>
       <div class="thread-list" id="threadList" aria-live="polite"></div>
       <div class="sidebar-bottom">
-        <button class="sidebar-link" type="button" id="helpBtn"><span>?</span> Help &amp; guide</button>
-        <div class="owner-badge"><div class="owner-avatar">S</div><div class="owner-meta"><div class="owner-name">MD SAMIUL ISLAM</div><div class="owner-sub">Personal Assistant</div></div><span class="owner-more">•••</span></div>
+        <button class="sidebar-link" type="button" id="helpBtn"><span>?</span> Help center</button>
+        <div class="owner-badge"><div class="owner-avatar">S</div><div class="owner-meta"><div class="owner-name">MD SAMIUL ISLAM</div><div class="owner-sub">Personal workspace</div></div><span class="owner-more">•••</span></div>
       </div>
     </aside>
 
     <main class="main">
       <header class="topbar">
         <button id="menuBtn" class="icon-btn menu-btn" title="Menu" aria-label="Menu">☰</button>
-        <div class="topbar-identity"><div class="agent-avatar"><span></span></div><div class="topbar-text"><div class="topbar-title">Chief Personal Assistant</div><div class="topbar-sub"><span class="online-dot"></span> Ready to help</div></div></div>
+        <div class="workspace-name"><span class="workspace-dot"></span><span>Personal workspace</span><span class="workspace-chevron">⌄</span></div>
         <div class="topbar-actions">
           <button class="icon-btn" id="themeToggle" title="Toggle dark mode" aria-label="Toggle dark mode"><span class="theme-icon">☾</span></button>
-          <button class="icon-btn" id="clearChatBtn" title="New chat" aria-label="New chat">✎</button>
+          <button class="icon-btn" id="clearChatBtn" title="New task" aria-label="New task">＋</button>
           <button class="icon-btn" id="topMoreBtn" title="More options" aria-label="More options">•••</button>
         </div>
       </header>
 
       <div class="chat-scroll" id="chatScroll">
         <div class="welcome" id="emptyState">
-          <div class="welcome-orb"><span></span></div>
-          <h1>What are we getting done today?</h1>
-          <p>Ask a question, hand off a task, or drop in a file. I'll bring in a specialist agent myself when the work calls for one.</p>
+          <div class="welcome-kicker"><span class="kicker-dot"></span> Your autonomous AI agent</div>
+          <h1>What can I help you get done?</h1>
+          <p>Give Manus a task. It can research, create, analyze, and execute multi-step work for you.</p>
           <div class="suggestion-grid" aria-label="Quick start options">
-            <button class="suggestion-card" data-prompt="Create a practical plan for my day"><span class="suggestion-icon">✦</span><span>Create a plan for my day</span></button>
-            <button class="suggestion-card" data-prompt="Review my latest GitHub work and give me a short report"><span class="suggestion-icon">⌘</span><span>Review my GitHub work</span></button>
-            <button class="suggestion-card" data-prompt="Organize the most important tasks for this week"><span class="suggestion-icon">☷</span><span>Organize my priorities</span></button>
-            <button class="suggestion-card" data-prompt="Write a polished email for me"><span class="suggestion-icon">✉</span><span>Write an email</span></button>
+            <button class="suggestion-card" data-prompt="Research this topic and create a clear report"><span class="suggestion-icon">⌕</span><span><b>Research a topic</b><small>Find and synthesize information</small></span><i>↗</i></button>
+            <button class="suggestion-card" data-prompt="Create a practical plan for my day"><span class="suggestion-icon">✦</span><span><b>Plan my day</b><small>Turn goals into an actionable plan</small></span><i>↗</i></button>
+            <button class="suggestion-card" data-prompt="Analyze my latest data and give me a short report"><span class="suggestion-icon">▥</span><span><b>Analyze data</b><small>Upload files and uncover insights</small></span><i>↗</i></button>
+            <button class="suggestion-card" data-prompt="Write a polished email for me"><span class="suggestion-icon">✎</span><span><b>Write something</b><small>Draft, edit, or transform content</small></span><i>↗</i></button>
           </div>
         </div>
         <div class="messages" id="messages" aria-live="polite"></div>
@@ -58,13 +63,14 @@
         <div class="composer-hint" id="composerHint"><span class="hint-dot"></span> Agent ready</div>
         <div class="attachment-chip" id="attachmentChip" hidden><span class="attachment-file-icon">▣</span><span id="attachmentName"></span><button id="removeAttachment" title="Remove file" aria-label="Remove file">×</button></div>
         <div class="composer" id="composer">
-          <div class="composer-row"><button class="composer-tool" id="attachBtn" title="Attach a file" aria-label="Attach a file">＋</button><input type="file" id="fileInput" hidden /><textarea id="textInput" placeholder="Message your agent..." rows="1" aria-label="Message your agent"></textarea><button class="send-btn" id="sendBtn" title="Send message" aria-label="Send message"><span>↑</span></button></div>
-          <div class="composer-footer"><span>Enter to send · Shift + Enter for a new line</span><span class="secure-label">⌁ Private conversation</span></div>
+          <div class="composer-row"><button class="composer-tool" id="attachBtn" title="Attach a file" aria-label="Attach a file">＋</button><textarea id="textInput" placeholder="Assign a task to Manus..." rows="1" aria-label="Assign a task to Manus"></textarea><button class="send-btn" id="sendBtn" title="Send task" aria-label="Send task"><span>↑</span></button></div>
+          <div class="composer-footer"><span>Manus can make mistakes. Check important information.</span><span class="secure-label">⌁ Private workspace</span></div>
         </div>
       </div>
     </main>
   </div>
 
+  <input type="file" id="fileInput" hidden />
   <template id="stepTemplate"><div class="step"><span class="step-dot" aria-hidden="true"></span><div class="step-head"><span class="step-icon"></span><span class="step-label"></span><span class="step-status">Running</span><span class="step-chevron">⌄</span></div><pre class="step-detail" hidden></pre></div></template>
   <script src="/static/app.js"></script>
 </body>
