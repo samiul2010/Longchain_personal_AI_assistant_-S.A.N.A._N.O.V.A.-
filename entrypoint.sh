@@ -5,11 +5,20 @@
 # container's lifecycle by, and the one that receives signals on shutdown.
 set -e
 
-echo "[agent_pc] starting dbus..."
-mkdir -p /var/run/dbus
-dbus-daemon --system --fork || echo "[agent_pc] system dbus already running or unavailable, continuing"
-eval "$(dbus-launch --sh-syntax)"
-export DBUS_SESSION_BUS_ADDRESS
+#echo "[agent_pc] starting dbus..."
+#mkdir -p /var/run/dbus
+#dbus-daemon --system --fork || echo "[agent_pc] system dbus already running or unavailable, continuing"
+#eval "$(dbus-launch --sh-syntax)"
+#export DBUS_SESSION_BUS_ADDRESS
+echo "[agent_pc] starting session dbus..."
+export DBUS_SESSION_BUS_ADDRESS="unix:path=/tmp/dbus-session"
+if [ ! -S /tmp/dbus-session ]; then
+    dbus-daemon --session \
+        --address="$DBUS_SESSION_BUS_ADDRESS" \
+        --fork \
+        --print-pid > /tmp/dbus-session.pid 2>/dev/null \
+        || echo "[agent_pc] session dbus unavailable, continuing"
+fi
 
 echo "[agent_pc] starting Xvfb on display $DISPLAY..."
 Xvfb "$DISPLAY" -screen 0 1280x800x24 -nolisten tcp &
