@@ -9,6 +9,8 @@ from langgraph_supervisor import create_supervisor
 from all_sub_agents import ALL_SUB_AGENTS
 from storage_paths import agent_dir, open_agent_sqlite
 
+from agent_pc.pc_setup import AGENT_PC_TOOLS
+
 load_dotenv()
 
 # ---------------------------------------------------------------------------
@@ -87,6 +89,7 @@ SUPERVISOR_PROMPT = f"You are the {ROLE}.\n\n" + Goal + "\n\n" + Backstory
 # ---------------------------------------------------------------------------
 _supervisor_builder = create_supervisor(
     agents=ALL_SUB_AGENTS,
+    tools=[*AGENT_PC_TOOLS],
     model=_llm,
     prompt=SUPERVISOR_PROMPT,
     supervisor_name=AGENT_NAME,
