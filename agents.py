@@ -26,8 +26,7 @@ DB_PATH = os.path.join(MEMORY_DIR, "state.db")
 # MAIN AGENT LLM
 # ---------------------------------------------------------------------------
 _llm = ChatGroq(
-    model_provider="moonshotai",
-    model="kimi-k2-instruct",
+    model="llama-3.3-70b-versatile",
     temperature=0,
     api_key=os.environ["GROQ_LLM"],
     max_retries=3,
