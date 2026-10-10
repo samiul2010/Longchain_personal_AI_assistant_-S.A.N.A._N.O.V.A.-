@@ -3,6 +3,7 @@ import asyncio
 import aiosqlite
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 from dotenv import load_dotenv
+from langchain_groq import ChatGroq
 from langchain.chat_models import init_chat_model
 from langgraph_supervisor import create_supervisor
 
@@ -24,11 +25,17 @@ DB_PATH = os.path.join(MEMORY_DIR, "state.db")
 # ---------------------------------------------------------------------------
 # MAIN AGENT LLM
 # ---------------------------------------------------------------------------
-_llm =init_chat_model(
-    model_provider="google_genai",
-    model=os.getenv("LLM_MODEL"),
-    api_key=os.getenv("LLM_API_KEY"),
+_llm = ChatGroq(
+    model="llama-3.3-70b-versatile",
+    temperature=0,
+    api_key=os.environ["GROQ_LLM"],
+    max_retries=3,
 )
+#_llm =init_chat_model(
+#    model_provider="google_genai",
+#    model=os.getenv("LLM_MODEL"),
+#    api_key=os.getenv("LLM_API_KEY"),
+#)
 
 # ---------------------------------------------------------------------------
 # STATE / MEMORY (sqlite, kept for this agent's whole lifetime, tuned to be
