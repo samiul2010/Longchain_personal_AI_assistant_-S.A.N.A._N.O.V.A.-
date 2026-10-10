@@ -80,12 +80,20 @@ ENV HOME=/home/user \
 RUN mkdir -p /agent && chown -R user:user /agent
 
 # ── Python: single interpreter, symlink for 'python' ──
-RUN ln -sf /usr/bin/python3 /usr/local/bin/python && \
-    python3 -m pip install --no-cache-dir --upgrade pip
-# ── Install Python dependencies BEFORE copying code (layer cache) ─────────────
-COPY --chown=user requirements.txt .
-RUN python3 -m pip install --no-cache-dir -r requirements.txt
+# ── Python venv (PEP 668 compliant, system packages inherit) ──
+# --system-site-packages দেওয়ায় venv /usr/lib/python3/dist-packages দেখতে পাবে
+# ফলে apt থেকে ইনস্টল হওয়া python3-gi, python3-pyatspi — সব import হবে
+RUN python3 -m venv --system-site-packages /home/user/venv \
+    && /home/user/venv/bin/pip install --no-cache-dir --upgrade pip \
+    && chown -R user:user /home/user/venv
 
+# venv কে PATH-এ প্রথমে রাখো
+ENV VIRTUAL_ENV="/home/user/venv"
+ENV PATH="/home/user/venv/bin:$PATH"
+
+# ── Install Python dependencies ──
+COPY --chown=user requirements.txt .
+RUN /home/user/venv/bin/pip install --no-cache-dir -r requirements.txt
 # ── Copy application code ─────────────────────────────────────────────────────
 COPY --chown=user . .
 #--------coppy_pc-----------------------
