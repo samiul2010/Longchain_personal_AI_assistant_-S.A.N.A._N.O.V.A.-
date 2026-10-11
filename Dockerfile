@@ -43,6 +43,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     x11-utils \
     x11-xserver-utils \
     xdotool \
+    imagemagick \
+    x11-apps \
+    ffmpeg \
+    pulseaudio \
+    pulseaudio-utils \
+    alsa-utils \
     libreoffice-writer \
     libreoffice-calc \
     fonts-liberation \

@@ -18,6 +18,7 @@ aiosqlite
 langchain-openai
 langchain-google-genai
 langchain-anthropic
+langchain-groq
 
 # ---------------------------------------------------------------------------
 # Web server / UI
@@ -31,3 +32,4 @@ aiosqlite
 #mcp_tools
 # ---------------------------------------------------------------------------
 just_facebook_mcp
+huggingface_hub

@@ -39,6 +39,7 @@
         <div class="workspace-name"><span class="workspace-dot"></span><span>Personal workspace</span><span class="workspace-chevron">⌄</span></div>
         <div class="topbar-actions">
           <button class="icon-btn" id="themeToggle" title="Toggle dark mode" aria-label="Toggle dark mode"><span class="theme-icon">☾</span></button>
+          <button class="icon-btn pc-screen-btn" id="pcScreenBtn" title="View Agent PC" aria-label="View Agent PC">🖥️</button>
           <button class="icon-btn" id="clearChatBtn" title="New task" aria-label="New task">＋</button>
           <button class="icon-btn" id="topMoreBtn" title="More options" aria-label="More options">•••</button>
         </div>
@@ -61,17 +62,110 @@
 
       <div class="composer-area">
         <div class="composer-hint" id="composerHint"><span class="hint-dot"></span> Agent ready</div>
-        <div class="attachment-chip" id="attachmentChip" hidden><span class="attachment-file-icon">▣</span><span id="attachmentName"></span><button id="removeAttachment" title="Remove file" aria-label="Remove file">×</button></div>
+        <div class="attachment-chip" id="attachmentChip" hidden></div>
         <div class="composer" id="composer">
-          <div class="composer-row"><button class="composer-tool" id="attachBtn" title="Attach a file" aria-label="Attach a file">＋</button><textarea id="textInput" placeholder="Assign a task to Manus..." rows="1" aria-label="Assign a task to Manus"></textarea><button class="send-btn" id="sendBtn" title="Send task" aria-label="Send task"><span>↑</span></button></div>
+          <div class="composer-row"><button class="composer-tool" id="attachBtn" title="Attach files" aria-label="Attach files">＋</button><textarea id="textInput" placeholder="Assign a task to Manus..." rows="1" aria-label="Assign a task to Manus"></textarea><button class="send-btn" id="sendBtn" title="Send task" aria-label="Send task"><span>↑</span></button></div>
           <div class="composer-footer"><span>Manus can make mistakes. Check important information.</span><span class="secure-label">⌁ Private workspace</span></div>
         </div>
       </div>
     </main>
   </div>
 
-  <input type="file" id="fileInput" hidden />
+  <input type="file" id="fileInput" multiple hidden />
+
   <template id="stepTemplate"><div class="step"><span class="step-dot" aria-hidden="true"></span><div class="step-head"><span class="step-icon"></span><span class="step-label"></span><span class="step-status">Running</span><span class="step-chevron">⌄</span></div><pre class="step-detail" hidden></pre></div></template>
+
+  <!-- ══════════════════════════════════════════════════════════════
+       PC SCREEN VIEWER MODAL
+       🖥️ বাটনে ক্লিক করলে খুলবে। দুইটা মোড (Agent/Normal) সহ।
+       ══════════════════════════════════════════════════════════════ -->
+  <div class="pc-modal" id="pcModal" hidden>
+    <div class="pc-modal-backdrop" id="pcModalBackdrop"></div>
+    <div class="pc-modal-panel">
+
+      <!-- Header with mode dropdown -->
+      <div class="pc-modal-header">
+        <div class="pc-title">
+          <span class="pc-dot"></span>
+          <span>Agent PC</span>
+        </div>
+
+        <div class="pc-controls">
+          <label class="pc-ctrl">
+            <span class="pc-ctrl-label">View</span>
+            <select id="pcMode">
+              <option value="agent">🤖 Agent Mode</option>
+              <option value="normal">🖥️ Normal Mode</option>
+            </select>
+          </label>
+
+          <div class="pc-zoom" id="pcZoomControls" hidden>
+            <button id="pcZoomOut" title="Zoom out">−</button>
+            <span id="pcZoomLevel">100%</span>
+            <button id="pcZoomIn" title="Zoom in">＋</button>
+            <button id="pcZoomReset" title="Reset">⟲</button>
+          </div>
+
+          <label class="pc-ctrl">
+            <span class="pc-ctrl-label">Click</span>
+            <select id="pcClickMode">
+              <option value="confirm">🛡️ Confirm</option>
+              <option value="direct">⚡ Direct</option>
+              <option value="disabled">🚫 Off</option>
+            </select>
+          </label>
+
+          <label class="pc-ctrl">
+            <span class="pc-ctrl-label">Audio</span>
+            <select id="pcAudioMode">
+              <option value="off">🔇 Off</option>
+              <option value="on">🔊 On</option>
+            </select>
+          </label>
+        </div>
+
+        <button class="icon-btn" id="pcRefresh" title="Refresh">↻</button>
+        <button class="icon-btn" id="pcClose" title="Close">×</button>
+      </div>
+
+      <!-- Body: dual mode -->
+      <div class="pc-body" id="pcBody">
+
+        <!-- Normal Mode: real screen image -->
+        <div class="pc-normal-wrap" id="pcNormalWrap" hidden>
+          <div class="pc-screen-frame" id="pcScreenFrame">
+            <img id="pcScreenshot" alt="Agent PC screen" />
+            <div class="pc-click-marker" id="pcClickMarker" hidden></div>
+          </div>
+        </div>
+
+        <!-- Agent Mode: AT-SPI text tree -->
+        <div class="pc-agent-wrap" id="pcAgentWrap" hidden>
+          <div class="pc-agent-tree" id="pcAgentTree"></div>
+        </div>
+
+      </div>
+
+      <!-- Input bar -->
+      <div class="pc-input-bar">
+        <div class="pc-typing-row">
+          <input type="text" id="pcTypeInput" placeholder="Type text to send to PC..." />
+          <button id="pcTypeSend">Send</button>
+          <button id="pcKeyEnter" title="Press Enter">⏎</button>
+          <button id="pcKeyEscape" title="Press Escape">Esc</button>
+        </div>
+
+        <div class="pc-status-row">
+          <span class="pc-status" id="pcStatus">Ready</span>
+          <span class="pc-status-hint" id="pcStatusHint"></span>
+        </div>
+      </div>
+
+      <audio id="pcAudioPlayer" hidden></audio>
+
+    </div>
+  </div>
+
   <script src="/static/app.js"></script>
 </body>
 </html>

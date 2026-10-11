@@ -20,6 +20,63 @@ from storage_paths import agent_dir
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("personal_assistant")
 
+
+# ---------------------------------------------------------------------------
+# Quiet down uvicorn's access log: by default it prints a line for EVERY
+# single request, including the frontend's routine polling
+# (/api/threads, /api/history, the sidebar refreshing itself every few
+# seconds) — on HF Space's log viewer this floods the page with
+# near-identical "200 OK" lines and buries the one request that actually
+# failed. This filter drops successful (2xx) log lines for known
+# high-frequency polling paths, while still logging everything else
+# (errors, chat requests, anything with a non-2xx status) normally.
+# ---------------------------------------------------------------------------
+_QUIET_SUCCESS_PATHS = ("/api/threads", "/api/history", "/static/")
+
+
+class _QuietPollingFilter(logging.Filter):
+    def filter(self, record: logging.LogRecord) -> bool:
+        message = record.getMessage()
+        if any(path in message for path in _QUIET_SUCCESS_PATHS):
+            # uvicorn's access log format ends with '... HTTP/1.1" <status>'
+            # — only swallow the line if it was actually a success (2xx);
+            # a 4xx/5xx on these same paths still gets logged.
+            if '" 2' in message:
+                return False
+        return True
+
+
+logging.getLogger("uvicorn.access").addFilter(_QuietPollingFilter())
+
+
+# ---------------------------------------------------------------------------
+# Same idea, for the LLM provider's own HTTP calls: httpx (used internally
+# by the Gemini SDK) logs a line for every single request/response, even
+# on pure success — "HTTP Request: POST .../streamGenerateContent ...
+# 200 OK" on every single message. Show the FIRST successful call once
+# (so it's visible that calls are actually reaching the provider), then
+# go silent for every later purely-successful call. Anything that ISN'T a
+# clean 2xx — errors, 429 rate-limit retries, timeouts — always gets
+# logged, every single time, no matter how many successes came before it.
+# ---------------------------------------------------------------------------
+class _QuietLLMCallsFilter(logging.Filter):
+    def __init__(self):
+        super().__init__()
+        self._shown_first_success = False
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        message = record.getMessage()
+        is_success = '"HTTP/1.1 2' in message or '" 2' in message
+        if not is_success:
+            return True  # errors / retries / non-2xx always shown
+        if not self._shown_first_success:
+            self._shown_first_success = True
+            return True
+        return False
+
+
+logging.getLogger("httpx").addFilter(_QuietLLMCallsFilter())
+
 # ---------------------------------------------------------------------------
 # Resolve paths relative to THIS file, not the process's current working
 # directory (which may differ from the project root depending on how the
@@ -542,7 +599,29 @@ async def chat(
         except Exception as exc:  # noqa: BLE001
             logger.error("chat stream failed:\n%s", traceback.format_exc())
             error_text = f"একটি সমস্যা হয়েছে: {exc}"
-            _replace_last_assistant_turn(thread_id, {"role": "assistant", "steps": [], "text": error_text})
+
+            # BUG FIX: this used to hard-code "steps": [], throwing away
+            # every tool call / agent handoff that had already happened
+            # before the error — so the on-screen activity log visibly
+            # emptied out the instant something went wrong, even though
+            # real work had completed up to that point. LangGraph's
+            # checkpointer saves state incrementally as the graph runs,
+            # so a best-effort read here usually recovers those steps
+            # even after a mid-task failure; only fall back to an empty
+            # list if that read ALSO fails.
+            error_turn = {"role": "assistant", "steps": [], "text": error_text}
+            try:
+                crash_state = await graph.aget_state(config)
+                crash_messages = (crash_state.values or {}).get("messages", []) if crash_state else []
+                crash_turns = _messages_to_turns(crash_messages)
+                latest = next((t for t in reversed(crash_turns) if t.get("role") == "assistant"), None)
+                if latest:
+                    latest["text"] = (latest.get("text") or "") + (f"\n\n⚠️ {error_text}" if latest.get("text") else error_text)
+                    error_turn = latest
+            except Exception:
+                logger.error("failed to recover steps after error:\n%s", traceback.format_exc())
+
+            _replace_last_assistant_turn(thread_id, error_turn)
             yield _sse({"type": "error", "message": str(exc)})
         finally:
             # Guard against leaking the background task if the client

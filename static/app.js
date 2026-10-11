@@ -6,8 +6,8 @@ const sendBtn = document.getElementById("sendBtn");
 const attachBtn = document.getElementById("attachBtn");
 const fileInput = document.getElementById("fileInput");
 const attachmentChip = document.getElementById("attachmentChip");
-const attachmentName = document.getElementById("attachmentName");
-const removeAttachment = document.getElementById("removeAttachment");
+// NOTE: attachmentName / removeAttachment আর ব্যবহার করা হয় না —
+// dynamic chips renderAttachmentChips() দিয়ে হয়
 const newChatBtn = document.getElementById("newChatBtn");
 const clearChatBtn = document.getElementById("clearChatBtn");
 const themeToggle = document.getElementById("themeToggle");
@@ -22,7 +22,7 @@ const sidebarBackdrop = document.getElementById("sidebarBackdrop");
 const chatScroll = document.getElementById("chatScroll");
 
 let currentThreadId = localStorage.getItem("assistant_thread_id") || null;
-let pendingAttachment = null;
+let pendingAttachments = [];
 let isStreaming = false;
 let activeTranscript = [];
 
@@ -344,22 +344,49 @@ suggestionCards.forEach((card) => card.addEventListener("click", () => {
 }));
 
 attachBtn.addEventListener("click", () => fileInput.click());
+
 fileInput.addEventListener("change", async () => {
-  const file = fileInput.files[0];
-  if (!file) return;
+  const files = Array.from(fileInput.files || []);
+  if (!files.length) return;
   try {
     const formData = new FormData();
-    formData.append("file", file);
+    files.forEach(f => formData.append("files", f));
     const res = await fetch("/api/upload", { method: "POST", body: formData });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || "Unable to upload the file");
-    pendingAttachment = data;
-    attachmentName.textContent = data.filename;
-    attachmentChip.hidden = false;
-  } catch (err) { alert(err.message); }
+    if (!res.ok) throw new Error(data.error || "Unable to upload files");
+    pendingAttachments.push(...(data.files || []));
+    renderAttachmentChips();
+  } catch (err) {
+    alert(err.message);
+  }
   fileInput.value = "";
 });
-removeAttachment.addEventListener("click", () => { pendingAttachment = null; attachmentChip.hidden = true; });
+
+function renderAttachmentChips() {
+  const chip = document.getElementById("attachmentChip");
+  chip.innerHTML = "";
+  if (!pendingAttachments.length) {
+    chip.hidden = true;
+    return;
+  }
+  pendingAttachments.forEach((att, i) => {
+    const pill = document.createElement("span");
+    pill.className = "file-pill";
+    const nameSpan = document.createElement("span");
+    nameSpan.textContent = "▣ " + att.filename;
+    const del = document.createElement("button");
+    del.textContent = "×";
+    del.title = "Remove";
+    del.addEventListener("click", () => {
+      pendingAttachments.splice(i, 1);
+      renderAttachmentChips();
+    });
+    pill.append(nameSpan, del);
+    chip.appendChild(pill);
+  });
+  chip.hidden = false;
+}
+
 
 function resizeComposer() {
   textInput.style.height = "auto";
@@ -385,9 +412,9 @@ async function sendMessage() {
   const text = textInput.value.trim();
   if (!text || isStreaming) return;
   await ensureThread();
-  const attachment = pendingAttachment;
-  pendingAttachment = null;
-  attachmentChip.hidden = true;
+  const attachments = pendingAttachments.slice();
+  pendingAttachments = [];
+  renderAttachmentChips();
   textInput.value = "";
   resizeComposer();
 
@@ -401,11 +428,14 @@ async function sendMessage() {
   saveCachedTurns(activeTranscript);
 
   const formData = new FormData();
-  formData.append("thread_id", currentThreadId);
-  formData.append("text", text);
-  if (attachment) formData.append("attachment_path", attachment.path);
-  isStreaming = true;
-  sendBtn.disabled = true;
+formData.append("thread_id", currentThreadId);
+formData.append("text", text);
+if (attachments.length) {
+  formData.append("attachment_paths", JSON.stringify(attachments.map(a => a.path)));
+  formData.append("attachment_path", attachments[0].path);
+}
+isStreaming = true;
+sendBtn.disabled = true;
 
   const activeSteps = {};
   try {
@@ -526,3 +556,302 @@ function handleEvent(evt, stepsWrap, bubble, activeSteps, assistantTurn) {
     await loadHistory();
   }
 })();
+
+// ═══════════════════════════════════════════════════════════════
+//  PC SCREEN VIEWER + AUDIO (dropdown-based)
+// ═══════════════════════════════════════════════════════════════
+const pcModal = document.getElementById("pcModal");
+const pcModalBackdrop = document.getElementById("pcModalBackdrop");
+const pcScreenBtn = document.getElementById("pcScreenBtn");
+const pcClose = document.getElementById("pcClose");
+const pcRefresh = document.getElementById("pcRefresh");
+const pcMode = document.getElementById("pcMode");
+const pcScreenshot = document.getElementById("pcScreenshot");
+const pcAgentTree = document.getElementById("pcAgentTree");
+const pcNormalWrap = document.getElementById("pcNormalWrap");
+const pcAgentWrap = document.getElementById("pcAgentWrap");
+const pcZoomControls = document.getElementById("pcZoomControls");
+const pcZoomIn = document.getElementById("pcZoomIn");
+const pcZoomOut = document.getElementById("pcZoomOut");
+const pcZoomReset = document.getElementById("pcZoomReset");
+const pcZoomLevel = document.getElementById("pcZoomLevel");
+const pcScreenFrame = document.getElementById("pcScreenFrame");
+const pcClickMarker = document.getElementById("pcClickMarker");
+const pcTypeInput = document.getElementById("pcTypeInput");
+const pcTypeSend = document.getElementById("pcTypeSend");
+const pcKeyEnter = document.getElementById("pcKeyEnter");
+const pcKeyEscape = document.getElementById("pcKeyEscape");
+const pcClickMode = document.getElementById("pcClickMode");
+const pcAudioMode = document.getElementById("pcAudioMode");
+const pcStatus = document.getElementById("pcStatus");
+const pcStatusHint = document.getElementById("pcStatusHint");
+const pcAudioPlayer = document.getElementById("pcAudioPlayer");
+
+let pcZoom = 1.0;
+let pcRefreshTimer = null;
+let pcCurrentImageWidth = 0;
+let pcCurrentImageHeight = 0;
+let pcAudioOn = false;
+
+// ─── Open / Close ─────────────────────────────────────────
+function openPcModal() {
+  pcModal.hidden = false;
+  document.body.style.overflow = "hidden";
+  applyPcMode();
+  startPcAutoRefresh();
+}
+
+function closePcModal() {
+  pcModal.hidden = true;
+  document.body.style.overflow = "";
+  stopPcAutoRefresh();
+  // audio বন্ধ করি modal বন্ধ হলে
+  if (pcAudioOn) {
+    pcAudioMode.value = "off";
+    setAudioState(false);
+  }
+}
+
+pcScreenBtn?.addEventListener("click", openPcModal);
+pcClose?.addEventListener("click", closePcModal);
+pcModalBackdrop?.addEventListener("click", closePcModal);
+
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && pcModal && !pcModal.hidden) closePcModal();
+});
+
+// ─── Mode switching (View dropdown) ──────────────────────
+function applyPcMode() {
+  const mode = pcMode.value;
+  if (mode === "normal") {
+    pcNormalWrap.removeAttribute("hidden");
+    pcAgentWrap.setAttribute("hidden", "");
+    pcZoomControls.removeAttribute("hidden");
+    pcStatusHint.textContent = "Normal Mode — actual screen";
+  } else {
+    pcNormalWrap.setAttribute("hidden", "");
+    pcAgentWrap.removeAttribute("hidden");
+    pcZoomControls.setAttribute("hidden", "");
+    pcStatusHint.textContent = "Agent Mode — what the AI sees";
+  }
+  refreshPcScreen();
+}
+
+pcMode?.addEventListener("change", applyPcMode);
+
+// ─── Refresh ─────────────────────────────────────────────
+async function refreshPcScreen() {
+  pcStatus.textContent = "Loading...";
+  pcStatus.className = "pc-status working";
+
+  try {
+    if (pcMode.value === "normal") {
+      const res = await fetch("/api/pc/screenshot", { cache: "no-store" });
+      const data = await res.json();
+      if (data.image) {
+        pcScreenshot.src = "data:image/png;base64," + data.image;
+        pcScreenshot.onload = () => {
+          pcCurrentImageWidth = pcScreenshot.naturalWidth;
+          pcCurrentImageHeight = pcScreenshot.naturalHeight;
+          pcStatus.textContent = "Live";
+          pcStatus.className = "pc-status done";
+        };
+      } else {
+        pcStatus.textContent = "Error";
+        pcStatus.className = "pc-status error";
+      }
+    } else {
+      const res = await fetch("/api/pc/tree", { cache: "no-store" });
+      const data = await res.json();
+      renderAgentTree(data);
+      pcStatus.textContent = "Live";
+      pcStatus.className = "pc-status done";
+    }
+  } catch (err) {
+    pcStatus.textContent = "Error";
+    pcStatus.className = "pc-status error";
+    console.error("PC refresh failed", err);
+  }
+}
+
+pcRefresh?.addEventListener("click", refreshPcScreen);
+
+function startPcAutoRefresh() {
+  stopPcAutoRefresh();
+  pcRefreshTimer = setInterval(refreshPcScreen, 3000);
+}
+
+function stopPcAutoRefresh() {
+  if (pcRefreshTimer) {
+    clearInterval(pcRefreshTimer);
+    pcRefreshTimer = null;
+  }
+}
+
+// ─── Agent tree render ───────────────────────────────────
+function renderAgentTree(data) {
+  pcAgentTree.innerHTML = "";
+  if (!data.apps || data.apps.length === 0) {
+    pcAgentTree.innerHTML = '<div class="pc-agent-empty">No applications visible to the agent</div>';
+    return;
+  }
+  data.apps.forEach((app) => {
+    const appEl = document.createElement("div");
+    appEl.className = "pc-app-node";
+    const title = document.createElement("div");
+    title.className = "pc-app-title";
+    title.textContent = "📱 " + app.app;
+    appEl.appendChild(title);
+
+    app.nodes.forEach((node) => {
+      const el = document.createElement("div");
+      el.className = "pc-el";
+      el.style.paddingLeft = (node.depth * 16) + "px";
+      const roleSpan = document.createElement("span");
+      roleSpan.className = "pc-el-role";
+      roleSpan.textContent = node.role + ": ";
+      const nameSpan = document.createElement("span");
+      nameSpan.className = "pc-el-name" + (node.focused ? " pc-el-focused" : "");
+      nameSpan.textContent = node.name || "(no name)";
+      el.append(roleSpan, nameSpan);
+      appEl.appendChild(el);
+    });
+    pcAgentTree.appendChild(appEl);
+  });
+}
+
+// ─── Zoom ────────────────────────────────────────────────
+function applyZoom() {
+  pcScreenFrame.style.transform = `scale(${pcZoom})`;
+  pcZoomLevel.textContent = Math.round(pcZoom * 100) + "%";
+}
+
+pcZoomIn?.addEventListener("click", () => {
+  pcZoom = Math.min(pcZoom + 0.15, 3.0);
+  applyZoom();
+});
+pcZoomOut?.addEventListener("click", () => {
+  pcZoom = Math.max(pcZoom - 0.15, 0.3);
+  applyZoom();
+});
+pcZoomReset?.addEventListener("click", () => {
+  pcZoom = 1.0;
+  applyZoom();
+});
+
+// ─── Click (Normal Mode) ─────────────────────────────────
+pcScreenshot?.addEventListener("click", async (e) => {
+  if (pcMode.value !== "normal") return;
+
+  const clickMode = pcClickMode.value;
+  if (clickMode === "disabled") {
+    pcStatusHint.textContent = "Click disabled — enable in header";
+    return;
+  }
+
+  const rect = pcScreenshot.getBoundingClientRect();
+  const scaleX = pcCurrentImageWidth / rect.width;
+  const scaleY = pcCurrentImageHeight / rect.height;
+  const imgX = Math.round((e.clientX - rect.left) * scaleX);
+  const imgY = Math.round((e.clientY - rect.top) * scaleY);
+
+  if (clickMode === "confirm") {
+    const confirmed = confirm(`Send click to (${imgX}, ${imgY})?`);
+    if (!confirmed) return;
+  }
+
+  const markerX = e.clientX - rect.left;
+  const markerY = e.clientY - rect.top;
+  pcClickMarker.style.left = markerX + "px";
+  pcClickMarker.style.top = markerY + "px";
+  pcClickMarker.hidden = false;
+  setTimeout(() => { pcClickMarker.hidden = true; }, 600);
+
+  pcStatus.textContent = "Clicking...";
+  pcStatus.className = "pc-status working";
+  try {
+    const res = await fetch("/api/pc/input", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "click", x: imgX, y: imgY }),
+    });
+    const data = await res.json();
+    pcStatus.textContent = data.ok ? "Clicked" : "Failed";
+    pcStatus.className = "pc-status " + (data.ok ? "done" : "error");
+    setTimeout(refreshPcScreen, 500);
+  } catch (err) {
+    pcStatus.textContent = "Error";
+    pcStatus.className = "pc-status error";
+  }
+});
+
+// ─── Type text ───────────────────────────────────────────
+async function sendPcType(text) {
+  if (!text) return;
+  try {
+    await fetch("/api/pc/input", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "type", text }),
+    });
+    setTimeout(refreshPcScreen, 500);
+  } catch (err) {
+    console.error("type failed", err);
+  }
+}
+
+pcTypeSend?.addEventListener("click", () => {
+  const text = pcTypeInput.value;
+  if (text) {
+    sendPcType(text);
+    pcTypeInput.value = "";
+  }
+});
+
+pcTypeInput?.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") {
+    e.preventDefault();
+    pcTypeSend.click();
+  }
+});
+
+// ─── Special keys ────────────────────────────────────────
+pcKeyEnter?.addEventListener("click", async () => {
+  await fetch("/api/pc/input", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "key", key: "Return" }),
+  });
+  setTimeout(refreshPcScreen, 500);
+});
+
+pcKeyEscape?.addEventListener("click", async () => {
+  await fetch("/api/pc/input", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "key", key: "Escape" }),
+  });
+  setTimeout(refreshPcScreen, 500);
+});
+
+// ─── Audio toggle (dropdown) ─────────────────────────────
+function setAudioState(on) {
+  pcAudioOn = on;
+  if (pcAudioPlayer) {
+    if (on) {
+      pcAudioPlayer.src = "/api/pc/audio/stream?" + Date.now();
+      pcAudioPlayer.hidden = false;
+      pcAudioPlayer.play().catch((e) => console.warn("autoplay blocked", e));
+      pcStatusHint.textContent = "Audio streaming";
+    } else {
+      pcAudioPlayer.pause();
+      pcAudioPlayer.removeAttribute("src");
+      pcAudioPlayer.hidden = true;
+      pcStatusHint.textContent = "";
+    }
+  }
+}
+
+pcAudioMode?.addEventListener("change", () => {
+  setAudioState(pcAudioMode.value === "on");
+});

@@ -3,11 +3,14 @@ import asyncio
 import aiosqlite
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 from dotenv import load_dotenv
+from langchain_groq import ChatGroq
 from langchain.chat_models import init_chat_model
 from langgraph_supervisor import create_supervisor
 
 from all_sub_agents import ALL_SUB_AGENTS
 from storage_paths import agent_dir, open_agent_sqlite
+
+from agent_pc.pc_setup import AGENT_PC_TOOLS
 
 load_dotenv()
 
@@ -22,11 +25,17 @@ DB_PATH = os.path.join(MEMORY_DIR, "state.db")
 # ---------------------------------------------------------------------------
 # MAIN AGENT LLM
 # ---------------------------------------------------------------------------
-_llm =init_chat_model(
-    model_provider="google_genai",
-    model=os.getenv("LLM_MODEL"),
-    api_key=os.getenv("LLM_API_KEY"),
+_llm = ChatGroq(
+    model="llama-3.3-70b-versatile",
+    temperature=0,
+    api_key=os.environ["GROQ_LLM"],
+    max_retries=3,
 )
+#_llm =init_chat_model(
+#    model_provider="google_genai",
+#    model=os.getenv("LLM_MODEL"),
+#    api_key=os.getenv("LLM_API_KEY"),
+#)
 
 # ---------------------------------------------------------------------------
 # STATE / MEMORY (sqlite, kept for this agent's whole lifetime, tuned to be
@@ -87,6 +96,7 @@ SUPERVISOR_PROMPT = f"You are the {ROLE}.\n\n" + Goal + "\n\n" + Backstory
 # ---------------------------------------------------------------------------
 _supervisor_builder = create_supervisor(
     agents=ALL_SUB_AGENTS,
+    tools=[*AGENT_PC_TOOLS],
     model=_llm,
     prompt=SUPERVISOR_PROMPT,
     supervisor_name=AGENT_NAME,
