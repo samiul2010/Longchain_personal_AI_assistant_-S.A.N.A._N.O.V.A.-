@@ -6,11 +6,9 @@ import os
 import shutil
 import logging
 import traceback
-import base64
-import subprocess
 from datetime import datetime, timezone
 
-from fastapi import FastAPI, UploadFile, File, Form, Body
+from fastapi import FastAPI, UploadFile, File, Form
 from fastapi.responses import StreamingResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from langchain_core.messages import HumanMessage, AIMessage, ToolMessage
@@ -21,6 +19,63 @@ from storage_paths import agent_dir
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("personal_assistant")
+
+
+# ---------------------------------------------------------------------------
+# Quiet down uvicorn's access log: by default it prints a line for EVERY
+# single request, including the frontend's routine polling
+# (/api/threads, /api/history, the sidebar refreshing itself every few
+# seconds) — on HF Space's log viewer this floods the page with
+# near-identical "200 OK" lines and buries the one request that actually
+# failed. This filter drops successful (2xx) log lines for known
+# high-frequency polling paths, while still logging everything else
+# (errors, chat requests, anything with a non-2xx status) normally.
+# ---------------------------------------------------------------------------
+_QUIET_SUCCESS_PATHS = ("/api/threads", "/api/history", "/static/")
+
+
+class _QuietPollingFilter(logging.Filter):
+    def filter(self, record: logging.LogRecord) -> bool:
+        message = record.getMessage()
+        if any(path in message for path in _QUIET_SUCCESS_PATHS):
+            # uvicorn's access log format ends with '... HTTP/1.1" <status>'
+            # — only swallow the line if it was actually a success (2xx);
+            # a 4xx/5xx on these same paths still gets logged.
+            if '" 2' in message:
+                return False
+        return True
+
+
+logging.getLogger("uvicorn.access").addFilter(_QuietPollingFilter())
+
+
+# ---------------------------------------------------------------------------
+# Same idea, for the LLM provider's own HTTP calls: httpx (used internally
+# by the Gemini SDK) logs a line for every single request/response, even
+# on pure success — "HTTP Request: POST .../streamGenerateContent ...
+# 200 OK" on every single message. Show the FIRST successful call once
+# (so it's visible that calls are actually reaching the provider), then
+# go silent for every later purely-successful call. Anything that ISN'T a
+# clean 2xx — errors, 429 rate-limit retries, timeouts — always gets
+# logged, every single time, no matter how many successes came before it.
+# ---------------------------------------------------------------------------
+class _QuietLLMCallsFilter(logging.Filter):
+    def __init__(self):
+        super().__init__()
+        self._shown_first_success = False
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        message = record.getMessage()
+        is_success = '"HTTP/1.1 2' in message or '" 2' in message
+        if not is_success:
+            return True  # errors / retries / non-2xx always shown
+        if not self._shown_first_success:
+            self._shown_first_success = True
+            return True
+        return False
+
+
+logging.getLogger("httpx").addFilter(_QuietLLMCallsFilter())
 
 # ---------------------------------------------------------------------------
 # Resolve paths relative to THIS file, not the process's current working
@@ -188,20 +243,12 @@ async def delete_thread(thread_id: str):
 # API: file upload (attachment)
 # ---------------------------------------------------------------------------
 @app.post("/api/upload")
-async def upload_file(files: list[UploadFile] = File(...)):
-    """একসাথে একাধিক ফাইল গ্রহণ করে। যেকোনো extension।"""
-    uploaded = []
-    for file in files:
-        safe_name = f"{uuid.uuid4().hex}_{file.filename}"
-        dest_path = os.path.join(UPLOADS_DIR, safe_name)
-        with open(dest_path, "wb") as f:
-            shutil.copyfileobj(file.file, f)
-        uploaded.append({
-            "path": dest_path,
-            "filename": file.filename,
-            "size": os.path.getsize(dest_path),
-        })
-    return JSONResponse({"files": uploaded})
+async def upload_file(file: UploadFile = File(...)):
+    safe_name = f"{uuid.uuid4().hex}_{file.filename}"
+    dest_path = os.path.join(UPLOADS_DIR, safe_name)
+    with open(dest_path, "wb") as f:
+        shutil.copyfileobj(file.file, f)
+    return JSONResponse({"path": dest_path, "filename": file.filename})
 
 
 # ---------------------------------------------------------------------------
@@ -412,25 +459,14 @@ async def chat(
     thread_id: str = Form(...),
     text: str = Form(""),
     attachment_path: str | None = Form(None),
-    attachment_paths: str | None = Form(None),
 ):
     graph = main_assistant_agent
     config = {"configurable": {"thread_id": thread_id}}
 
     user_text = text or ""
-    all_paths = []
     if attachment_path:
-        all_paths.append(attachment_path)
-    if attachment_paths:
-        try:
-            parsed = json.loads(attachment_paths)
-            if isinstance(parsed, list):
-                all_paths.extend(parsed)
-        except Exception:
-            pass
-    if all_paths:
-        file_list = "\n".join(f"- {p}" for p in all_paths)
-        user_text = f"{user_text}\n\n[সংযুক্ত ফাইল:\n{file_list}]"
+        user_text = f"{user_text}\n\n[সংযুক্ত ফাইল: {attachment_path}]"
+
     await _touch_thread(thread_id, title=(text or "নতুন কথোপকথন")[:60])
     # Keep a small UI-oriented transcript independently from LangGraph. This
     # prevents a refresh from losing the visible assistant answer when a graph
@@ -443,6 +479,7 @@ async def chat(
     async def event_stream():
         streamed_text = ""
         queue: asyncio.Queue = asyncio.Queue()
+        _DONE = object()
 
         async def producer():
             # Runs the real graph execution completely independently of the
@@ -562,7 +599,29 @@ async def chat(
         except Exception as exc:  # noqa: BLE001
             logger.error("chat stream failed:\n%s", traceback.format_exc())
             error_text = f"একটি সমস্যা হয়েছে: {exc}"
-            _replace_last_assistant_turn(thread_id, {"role": "assistant", "steps": [], "text": error_text})
+
+            # BUG FIX: this used to hard-code "steps": [], throwing away
+            # every tool call / agent handoff that had already happened
+            # before the error — so the on-screen activity log visibly
+            # emptied out the instant something went wrong, even though
+            # real work had completed up to that point. LangGraph's
+            # checkpointer saves state incrementally as the graph runs,
+            # so a best-effort read here usually recovers those steps
+            # even after a mid-task failure; only fall back to an empty
+            # list if that read ALSO fails.
+            error_turn = {"role": "assistant", "steps": [], "text": error_text}
+            try:
+                crash_state = await graph.aget_state(config)
+                crash_messages = (crash_state.values or {}).get("messages", []) if crash_state else []
+                crash_turns = _messages_to_turns(crash_messages)
+                latest = next((t for t in reversed(crash_turns) if t.get("role") == "assistant"), None)
+                if latest:
+                    latest["text"] = (latest.get("text") or "") + (f"\n\n⚠️ {error_text}" if latest.get("text") else error_text)
+                    error_turn = latest
+            except Exception:
+                logger.error("failed to recover steps after error:\n%s", traceback.format_exc())
+
+            _replace_last_assistant_turn(thread_id, error_turn)
             yield _sse({"type": "error", "message": str(exc)})
         finally:
             # Guard against leaking the background task if the client
@@ -582,202 +641,7 @@ async def chat(
         },
     )
 
-# ═══════════════════════════════════════════════════════════════════
-#  PC SCREEN VIEWER API
-#  এজেন্টের virtual desktop-এর লাইভ স্ক্রিন + audio stream
-# ═══════════════════════════════════════════════════════════════════
 
-PC_SCREENSHOT_PATH = "/tmp/pc_screenshot.png"
-PC_DISPLAY = os.environ.get("DISPLAY", ":99")
-
-
-def _xdotool(args: list[str]) -> tuple[bool, str]:
-    """xdotool command চালাও।"""
-    try:
-        r = subprocess.run(
-            ["xdotool"] + args,
-            capture_output=True, text=True, timeout=5,
-            env={**os.environ, "DISPLAY": PC_DISPLAY},
-        )
-        return r.returncode == 0, (r.stdout + r.stderr).strip()
-    except Exception as e:
-        return False, str(e)
-
-
-def _screenshot() -> str | None:
-    """পুরো screen-এর PNG base64।"""
-    try:
-        r = subprocess.run(
-            ["import", "-window", "root", PC_SCREENSHOT_PATH],
-            capture_output=True, text=True, timeout=10,
-            env={**os.environ, "DISPLAY": PC_DISPLAY},
-        )
-        if r.returncode != 0:
-            subprocess.run(
-                ["xwd", "-root", "-display", PC_DISPLAY, "-out", "/tmp/pc.xwd"],
-                timeout=10, capture_output=True,
-            )
-            subprocess.run(
-                ["convert", "/tmp/pc.xwd", PC_SCREENSHOT_PATH],
-                timeout=10, capture_output=True,
-            )
-        with open(PC_SCREENSHOT_PATH, "rb") as f:
-            return base64.b64encode(f.read()).decode("ascii")
-    except Exception as e:
-        logger.error("screenshot failed: %s", e)
-        return None
-
-
-@app.get("/api/pc/screenshot")
-async def pc_screenshot():
-    """Normal Mode — screen-এর PNG (base64)।"""
-    data = _screenshot()
-    if not data:
-        return JSONResponse({"error": "screenshot failed"}, status_code=500)
-    return JSONResponse({"image": data, "format": "png"})
-
-
-@app.get("/api/pc/tree")
-async def pc_tree():
-    """Agent Mode — AT-SPI text tree।"""
-    try:
-        script = r'''
-import gi
-gi.require_version("Atspi", "2.0")
-from gi.repository import Atspi
-import json
-
-def walk(el, depth=0, max_depth=15):
-    lines = []
-    if depth > max_depth:
-        return lines
-    try:
-        role = el.get_role_name() or "unknown"
-        name = el.get_name() or ""
-        states = el.get_state_set()
-        if not states.contains(Atspi.StateType.SHOWING):
-            return lines
-        interesting = (
-            name or role in ("push button","entry","link","text",
-                             "check box","combo box","menu item","tab",
-                             "frame","window")
-        )
-        if interesting:
-            lines.append({
-                "depth": depth, "role": role, "name": name,
-                "enabled": states.contains(Atspi.StateType.ENABLED),
-                "focused": states.contains(Atspi.StateType.FOCUSED),
-            })
-        for i in range(el.get_child_count()):
-            lines += walk(el.get_child_at_index(i), depth+1, max_depth)
-    except Exception:
-        pass
-    return lines
-
-desktop = Atspi.get_desktop(0)
-apps = []
-for i in range(desktop.get_child_count()):
-    app = desktop.get_child_at_index(i)
-    app_name = app.get_name() or ""
-    if not app_name:
-        continue
-    nodes = walk(app)
-    if nodes:
-        apps.append({"app": app_name, "nodes": nodes})
-
-print(json.dumps({"apps": apps}, ensure_ascii=False))
-'''
-        r = subprocess.run(["python3", "-c", script],
-                           capture_output=True, text=True, timeout=15)
-        if r.returncode != 0:
-            return JSONResponse({"error": r.stderr, "apps": []}, status_code=500)
-        return JSONResponse(json.loads(r.stdout))
-    except Exception as e:
-        logger.error("tree failed: %s", e)
-        return JSONResponse({"error": str(e), "apps": []}, status_code=500)
-
-
-@app.post("/api/pc/input")
-async def pc_input(payload: dict = Body(...)):
-    """Input পাঠাও: click / type / key / scroll।"""
-    action = payload.get("action")
-
-    if action == "click":
-        x, y = int(payload.get("x", 0)), int(payload.get("y", 0))
-        ok, msg = _xdotool(["mousemove", str(x), str(y), "click", "1"])
-        return {"ok": ok, "message": msg}
-
-    if action == "type":
-        text = str(payload.get("text", ""))
-        ok, msg = _xdotool(["type", "--delay", "30", text])
-        return {"ok": ok, "message": msg}
-
-    if action == "key":
-        key = str(payload.get("key", ""))
-        ok, msg = _xdotool(["key", key])
-        return {"ok": ok, "message": msg}
-
-    if action == "scroll":
-        direction = payload.get("direction", "down")
-        btn = "5" if direction == "down" else "4"
-        ok, msg = _xdotool(["click", btn])
-        return {"ok": ok, "message": msg}
-
-    return JSONResponse({"error": "unknown action"}, status_code=400)
-
-
-# ───────────────────────────────────────────────────────────────
-# AUDIO STREAMING (PulseAudio → browser)
-# ───────────────────────────────────────────────────────────────
-AUDIO_STREAM_PROC: subprocess.Popen | None = None
-
-
-@app.post("/api/pc/audio/start")
-async def audio_start():
-    """PulseAudio monitor থেকে browser-এ audio stream শুরু করো।"""
-    global AUDIO_STREAM_PROC
-    if AUDIO_STREAM_PROC and AUDIO_STREAM_PROC.poll() is None:
-        return {"ok": True, "message": "already streaming"}
-    return {"ok": True, "message": "audio endpoint ready"}
-
-
-@app.post("/api/pc/audio/stop")
-async def audio_stop():
-    """Audio stream বন্ধ করো।"""
-    return {"ok": True, "message": "audio stopped"}
-
-
-@app.get("/api/pc/audio/stream")
-async def audio_stream():
-    """PulseAudio monitor → WAV stream → browser।"""
-    async def generate():
-        cmd = [
-            "ffmpeg", "-f", "pulse", "-i", "auto_null.monitor",
-            "-f", "wav", "-ar", "16000", "-ac", "1", "-",
-        ]
-        try:
-            proc = subprocess.Popen(
-                cmd,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.DEVNULL,
-                env={**os.environ, "DISPLAY": PC_DISPLAY},
-            )
-            while True:
-                chunk = proc.stdout.read(4096)
-                if not chunk:
-                    break
-                yield chunk
-        except Exception as e:
-            logger.error("audio stream failed: %s", e)
-
-    return StreamingResponse(
-        generate(),
-        media_type="audio/wav",
-        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
-    )
-
-
-# ═══════════════════════════════
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("app:app", host="0.0.0.0", port=7860)
